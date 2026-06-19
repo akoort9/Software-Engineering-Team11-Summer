@@ -3,6 +3,7 @@ package cs4050e.deliv2.db;
 /** Represents a movie and its related information. */
 public class Movie {
     String title;
+    String genre;
     String desc;
 
     /** Placeholder. Represents URI to movie poster. */
@@ -17,8 +18,9 @@ public class Movie {
      * @param poster The movie's promotional poster.
      * @param trailer The movie's promotional trailer.
      */
-    public Movie(String title, String desc, String poster, String trailer) {
+    public Movie(String title, String genre, String desc, String poster, String trailer) {
 	this.title = title;
+	this.genre = genre;
 	this.desc = desc;
 	this.poster = poster;
 	this.trailer = trailer;
@@ -32,11 +34,12 @@ public class Movie {
      */
     public boolean compare(Movie movie) {
 	boolean sameTitle = this.title.equals(movie.title);
+	boolean sameGenre = this.genre.equals(movie.genre);
 	boolean sameDesc = this.desc.equals(movie.desc);
 	boolean samePoster = this.poster.equals(movie.poster);
 	boolean sameTrailer = this.trailer.equals(movie.trailer);
 
-	return sameTitle && sameDesc && samePoster && sameTrailer;
+	return sameTitle && sameGenre && sameDesc && samePoster && sameTrailer;
     } // compare
     
 } // Movie

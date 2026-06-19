@@ -12,14 +12,16 @@ import cs4050e.deliv2.db.DataHandler;
  */
 public class AppTest {
     Movie obsession = new Movie("Obsession",
-			    "A movie about a guy who wishes that his coworker " +
-			    "Nikki loves himself more than anyone else...",
-			    "http://www.impawards.com/2026/obsession_xlg.html",
-			    "https://www.youtube.com/watch?v=gMC8kkwbIQQ");
+				"horror",
+				"A movie about a guy who wishes that his coworker " +
+				"Nikki loves himself more than anyone else...",
+				"http://www.impawards.com/2026/obsession_xlg.html",
+				"https://www.youtube.com/watch?v=gMC8kkwbIQQ");
 
     Listing listing1 = new Listing(obsession, 9, true);
 
     Movie chainsawMan = new Movie("Chainsaw Man -- The Movie: Reze Arc",
+				  "action",
 				  "Chainsaw Man faces his deadliest battle yet in " +
 				  "a brutal war between devils, hunters and secret enemies.",
 				  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5EDz7NsypfyMnD8hrsTXfQgufO6SfM_Sh8maLxxmHB1ZnCITA",
