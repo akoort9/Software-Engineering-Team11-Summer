@@ -14,7 +14,7 @@ public class Listing {
     boolean status;
 
     /** Hardcoded. */
-    private String[] showtimes = ["2:00 PM", "5:00 PM", "8:00 PM"];
+    private String[] showtimes = {"2:00 PM", "5:00 PM", "8:00 PM"};
 
     /**
      * Initializes a {@code Listing} object.
