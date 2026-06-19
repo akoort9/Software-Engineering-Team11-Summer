@@ -33,5 +33,18 @@ public class Listing {
 	    this.rating = rating;
 	} // else
     } // Listing
+
+    /**
+     * Compares the calling {@code Listing} object to a given {@code Listing}.
+     * @param listing the listing to compare to.
+     * @return {@code true} if the listings are equal, {@code false} otherwise.
+     */
+    public boolean compare(Listing listing) {
+	boolean sameMovie = this.movie.compare(listing.movie);
+	boolean sameRating = this.rating == listing.rating;
+	boolean sameStatus = this.status == listing.status;
+
+	return sameMovie && sameRating && sameStatus;
+    } // compare
     
 } // Listing
