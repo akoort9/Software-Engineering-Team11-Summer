@@ -23,5 +23,20 @@ public class Movie {
 	this.poster = poster;
 	this.trailer = trailer;
     } // Movie
+
+    /**
+     * Compares the calling {@code Movie} object to a given
+     * {@code Movie}.
+     * @param movie the movie to compare to
+     * @return {@code true} if the movies are equal, {@code false} otherwise.
+     */
+    public boolean compare(Movie movie) {
+	boolean sameTitle = this.title.equals(movie.title);
+	boolean sameDesc = this.desc.equals(movie.desc);
+	boolean samePoster = this.poster.equals(movie.poster);
+	boolean sameTrailer = this.trailer.equals(movie.trailer);
+
+	return sameTitle && sameDesc && samePoster && sameTrailer;
+    } // compare
     
 } // Movie
