@@ -51,6 +51,7 @@ public class DataHandler {
 	    // convert JSON to objects
 	    for (int i = 0; i < 10; i++) {
 		if ((buf = reader.readLine()) != null) {
+		    System.out.println(GSON.fromJson(buf, Listing.class));
 		    listings[i] = GSON.fromJson(buf, Listing.class);
 		} // if
 	    } // for
