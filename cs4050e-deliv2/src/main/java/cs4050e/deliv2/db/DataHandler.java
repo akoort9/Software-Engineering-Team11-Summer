@@ -10,23 +10,25 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 
-/** Provides methods to handle stored in a given database. */
+/** Provides methods to handle what's stored in a given database. */
 public class DataHandler {
     /** GSON object. */
-    private static final Gson GSON = new GsonBuilder()
-	.create();
+    private static final Gson GSON = new GsonBuilder().create();
 
     /**
      * Adds listings to the provided database.
-     * @param listings an array of {@code Listing}s.
-     * @param filepath the path of the database.
+     * @param listings An array of {@code Listing}s.
+     * @param filepath The path of the database.
+     * @return {@code true} if the operation succeeded, {@code false} otherwise.
      */
     public static boolean addListings(Listing[] listings, String filepath) {
 	try (BufferedWriter writer = new BufferedWriter(new FileWriter(filepath, true))) {
+	    // convert to JSON and write to database file
 	    for (int i = 0; i < listings.length; i++) {
 		writer.write(GSON.toJson(listings[i]));
 		writer.newLine();
 	    } // for
+	    
 	    writer.close();
 	    return true;
 	} catch (IOException ioe) {
@@ -39,8 +41,8 @@ public class DataHandler {
     /**
      * Grabs the listings in the database and converts them
      * into an array of {@code Listing} objects.
-     * @param filepath the filepath of the database
-     * @return an array of {@code Listing}s if successful, {@code null} otherwise.
+     * @param filepath The filepath of the database.
+     * @return an array of size 10 of{@code Listing}s if successful, {@code null} otherwise.
      */
     public static Listing[] getListings(String filepath) {
 	String buf;
