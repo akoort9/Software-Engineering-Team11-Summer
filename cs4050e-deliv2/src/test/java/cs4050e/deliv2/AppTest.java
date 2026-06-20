@@ -1,10 +1,12 @@
 package cs4050e.deliv2;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import cs4050e.deliv2.db.Movie;
-import cs4050e.deliv2.db.Listing;
 import cs4050e.deliv2.db.DataHandler;
 
 /**
@@ -18,8 +20,6 @@ public class AppTest {
 				"http://www.impawards.com/2026/obsession_xlg.html",
 				"https://www.youtube.com/watch?v=gMC8kkwbIQQ");
 
-    Listing listing1 = new Listing(obsession, 9, true);
-
     Movie chainsawMan = new Movie("Chainsaw Man -- The Movie: Reze Arc",
 				  "action",
 				  "Chainsaw Man faces his deadliest battle yet in " +
@@ -27,42 +27,44 @@ public class AppTest {
 				  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5EDz7NsypfyMnD8hrsTXfQgufO6SfM_Sh8maLxxmHB1ZnCITA",
 				  "https://www.youtube.com/watch?v=tAzAhDNdehs");
 
-    Listing listing2 = new Listing(chainsawMan, 8, true);
+    Movie[] movies = {obsession, chainsawMan};
 
-    Listing[] listings = {listing1, listing2};
-	
     /**
      * Rigorous Test :-)
      */
     @Test
-    public void testAddListings() {
-        assertTrue(DataHandler.addListings(listings, "./db/listings.db"));
+    public void testAddMovie() {
+	for (Movie movie : movies) {
+	    assertTrue(DataHandler.addMovie(movie, "./db/listings.db"));
+	} // for
     }
 
     /**
      * Rigorous Test :-)
      */
     @Test
-    public void testGetListings() {
-	assertTrue(DataHandler.getListings("./db/listings.db") != null);
+    public void testGetMovies() {
+	assertNotNull(DataHandler.getMovies("./db/listings.db"));
     }
 
     /**
      * Rigorous Test :-)
      */
     @Test
-    public void testGetListingsObjects() {
-	boolean passing = true;
-	Listing[] dbListings = DataHandler.getListings("./db/listings.db");
-	for (int i = 0; i < listings.length; i++) {
-	    if (passing) {
-		passing = dbListings[i].compare(listings[i]);
-	    } // if
-	    else {
-		assertTrue(passing);
-	    } // else
+    public void testGetMoviesContents() {
+	for (Movie movie : movies) {
+	    DataHandler.addMovie(movie, "./db/listings.db");
 	} // for
 
-	assertTrue(passing);
-    } 
+	List<Movie> dbMovies = DataHandler.getMovies("./db/listings.db");
+	boolean foundObsession = false;
+
+	for (Movie movie : dbMovies) {
+	    if (movie.compare(obsession)) {
+		foundObsession = true;
+	    } // if
+	} // for
+
+	assertTrue(foundObsession);
+    }
 }
