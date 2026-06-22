@@ -1,7 +1,0 @@
-#!/bin/zsh -ex
-
-truncate -s 0 ./db/listings.db
-
-mvn -q clean
-mvn -q compile
-mvn exec:java -Dexec.mainClass=cs4050e.deliv2.App
