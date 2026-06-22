@@ -36,7 +36,9 @@ public class DataHandler {
 		    "genre TEXT, " +
 		    "\"desc\" TEXT, " +
 		    "poster TEXT, " +
-		    "trailer TEXT)"
+		    "trailer TEXT, " +
+		    "rating INTEGER, " +
+		    "status INTEGER)"
 		);
 	    } // try
 
@@ -53,8 +55,8 @@ public class DataHandler {
      * @return {@code true} if the operation succeeded, {@code false} otherwise.
      */
     public static boolean addMovie(Movie movie, String filepath) {
-	String sql = "INSERT INTO movies (title, genre, \"desc\", poster, trailer) "
-	    + "VALUES (?, ?, ?, ?, ?)";
+	String sql = "INSERT INTO movies (title, genre, \"desc\", poster, trailer, rating, status) "
+	    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
 	try (Connection conn = connect(filepath);
 	     PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -63,6 +65,16 @@ public class DataHandler {
 	    stmt.setString(3, movie.desc);
 	    stmt.setString(4, movie.poster);
 	    stmt.setString(5, movie.trailer);
+	    stmt.setInt(6, movie.rating);
+	    
+	    if (movie.status) {
+		// Currently Running
+		stmt.setInt(7, 1);
+	    } else {
+		// Coming Soon
+		stmt.setInt(7, 0);
+	    } // if-else
+	    
 	    stmt.executeUpdate();
 	    return true;
 	} catch (SQLException sqle) {
@@ -77,7 +89,7 @@ public class DataHandler {
      * @return a {@code List} of {@code Movie}s if successful, {@code null} otherwise.
      */
     public static List<Movie> getMovies(String filepath) {
-	String sql = "SELECT title, genre, \"desc\", poster, trailer FROM movies";
+	String sql = "SELECT title, genre, \"desc\", poster, trailer, rating, status FROM movies";
 	List<Movie> movies = new ArrayList<>();
 
 	try (Connection conn = connect(filepath);
@@ -89,7 +101,9 @@ public class DataHandler {
 		    rs.getString("genre"),
 		    rs.getString("desc"),
 		    rs.getString("poster"),
-		    rs.getString("trailer")
+		    rs.getString("trailer"),
+		    rs.getInt("rating"),
+		    rs.getBoolean("status")
 		));
 	    } // while
 

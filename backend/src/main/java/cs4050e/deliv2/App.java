@@ -110,7 +110,7 @@ public class App {
 	} // if
 
 	// only the title comes from the user right now; everything else defaults to empty
-	Movie movie = new Movie(title, "", "", "", "");
+	Movie movie = new Movie(title, "", "", "", "", 0, false);
 	boolean saved = DataHandler.addMovie(movie, DB_PATH);
 
 	if (!saved) {
