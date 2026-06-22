@@ -56,7 +56,7 @@ public class DataHandler {
      * @return {@code true} if the operation succeeded, {@code false} otherwise.
      */
     public static boolean addMovie(Movie movie, String filepath) {
-	String sql = "INSERT INTO movies (title, genre, \"desc\", poster, trailer, rating, status) "
+	String sql = "INSERT INTO movies (title, genre, \"desc\", poster, trailer, rating, status, showtimes) "
 	    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
 	try (Connection conn = connect(filepath);
