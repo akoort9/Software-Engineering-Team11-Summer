@@ -14,6 +14,7 @@ import java.util.Map;
 
 import cs4050e.deliv2.db.DataHandler;
 import cs4050e.deliv2.db.Movie;
+import cs4050e.deliv2.db.Seeder;
 
 /** Runs the HTTP API that the React frontend talks to. */
 public class App {
@@ -32,6 +33,11 @@ public class App {
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
+	for (int i = 0; i < Seeder.seed.length; i++) {
+	    DataHandler.addMovie(Seeder.seed[i], DB_PATH);
+	} // for
+
+	
 	HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
 	server.createContext("/api/movies", App::handleMovies);
