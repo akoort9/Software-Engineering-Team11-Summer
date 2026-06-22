@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Provides methods to handle what's stored in a given SQLite database. */
 public class DataHandler {
-
+    
     /**
      * Opens a connection to the SQLite database at the given filepath,
      * creating the {@code movies} table if it doesn't already exist.
@@ -38,7 +38,8 @@ public class DataHandler {
 		    "poster TEXT, " +
 		    "trailer TEXT, " +
 		    "rating INTEGER, " +
-		    "status INTEGER)"
+		    "status INTEGER, " +
+		    "showtimes TEXT)"
 		);
 	    } // try
 
@@ -56,7 +57,7 @@ public class DataHandler {
      */
     public static boolean addMovie(Movie movie, String filepath) {
 	String sql = "INSERT INTO movies (title, genre, \"desc\", poster, trailer, rating, status) "
-	    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+	    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
 	try (Connection conn = connect(filepath);
 	     PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -74,6 +75,8 @@ public class DataHandler {
 		// Coming Soon
 		stmt.setInt(7, 0);
 	    } // if-else
+
+	    stmt.setString(8, movie.showtimes);
 	    
 	    stmt.executeUpdate();
 	    return true;
@@ -103,7 +106,8 @@ public class DataHandler {
 		    rs.getString("poster"),
 		    rs.getString("trailer"),
 		    rs.getInt("rating"),
-		    rs.getBoolean("status")
+		    rs.getBoolean("status")//,
+		    // rs.getString("showtimes")
 		));
 	    } // while
 

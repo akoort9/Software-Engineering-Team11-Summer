@@ -26,8 +26,11 @@ public class Movie {
      */
     boolean status;
 
-    /** Hardcoded, here to make it easier to change later. */
-    private String[] showtimes = {"2:00 PM", "5:00 PM", "8:00 PM"};
+    /** Hardcoded.
+     * Comma separated string, each substring is a showtime for
+     * the movie. A semicolon denotes the end of the string.
+     */
+    String showtimes = "2:00 PM,5:00 PM,8:00 PM;";
     
     /**
      * Initializes a {@code Movie} object.
@@ -37,7 +40,9 @@ public class Movie {
      * @param trailer The movie's promotional trailer.
      * @param rating The movie's rating.
      * @param status Whether the movie is 'Currently Showing' or not ('Coming Soon').
+     * @param showtimes A comma separated list of the movie's showtimes. Hardcoded at the moment.
      * @throws IllegalArgumentException if {@code rating} is not between 0 and 10.
+     * @throws NullPointerException if any {@code String} parameter is {@code null}.
      */
     public Movie(String title,
 		 String genre,
@@ -46,16 +51,22 @@ public class Movie {
 		 String trailer,
 		 int rating,
 		 boolean status) {
-	
-	this.title = title;
-	this.genre = genre;
-	this.desc = desc;
-	this.poster = poster;
-	this.trailer = trailer;
-	this.status = status;
-	if (rating < 0 || rating > 10) {
+	// null check
+	if (title == null ||
+	     genre == null ||
+	     desc == null ||
+	     poster == null ||
+	     trailer == null) {
+	    throw new NullPointerException("no string parameters can be null.");
+	} else if (rating < 0 || rating > 10) {
 	    throw new IllegalArgumentException("rating must be between 0 and 10");
 	} else {
+	    this.title = title;
+	    this.genre = genre;
+	    this.desc = desc;
+	    this.poster = poster;
+	    this.trailer = trailer;
+	    this.status = status;
 	    this.rating = rating;
 	} // if-else
     } // Movie
@@ -78,6 +89,7 @@ public class Movie {
 	boolean sameTrailer = this.trailer.equals(movie.trailer);
 	boolean sameRating = this.rating == movie.rating;
 	boolean sameStatus = this.status == movie.status;
+	boolean sameShowtimes = this.showtimes == movie.showtimes;
 
 	return (sameTitle &&
 		sameGenre &&
@@ -85,7 +97,8 @@ public class Movie {
 		samePoster &&
 		sameTrailer &&
 		sameRating &&
-		sameStatus);
+		sameStatus &&
+		sameShowtimes);
     } // compare
     
 } // Movie
