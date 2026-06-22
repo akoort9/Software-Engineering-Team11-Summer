@@ -33,10 +33,11 @@ public class App {
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
+	/** Seeds database
 	for (int i = 0; i < Seeder.seed.length; i++) {
 	    DataHandler.addMovie(Seeder.seed[i], DB_PATH);
 	} // for
-
+	*/
 	
 	HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
