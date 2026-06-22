@@ -1,0 +1,140 @@
+package cs4050e.deliv2;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+
+import cs4050e.deliv2.db.DataHandler;
+import cs4050e.deliv2.db.Movie;
+
+/** Runs the HTTP API that the React frontend talks to. */
+public class App {
+    /** Port the server listens on. */
+    private static final int PORT = 8080;
+
+    /** Path to the SQLite database file. */
+    private static final String DB_PATH = "./db/listings.db";
+
+    /** GSON object. */
+    private static final Gson GSON = new GsonBuilder().create();
+
+    /**
+     * Starts the HTTP server.
+     * @param args unused.
+     * @throws IOException if the server fails to start.
+     */
+    public static void main(String[] args) throws IOException {
+	HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
+
+	server.createContext("/api/movies", App::handleMovies);
+
+	server.setExecutor(null);
+	server.start();
+	System.out.println("Listening on http://localhost:" + PORT);
+    } // main
+
+    /**
+     * Routes requests to {@code /api/movies} based on HTTP method.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleMovies(HttpExchange exchange) throws IOException {
+	// allow the React dev server (different origin) to call this API
+	exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+	exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+	exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+	String method = exchange.getRequestMethod();
+
+	if (method.equals("OPTIONS")) {
+	    exchange.sendResponseHeaders(204, -1);
+	} // if
+	else if (method.equals("GET")) {
+	    handleGetMovies(exchange);
+	} // elif
+	else if (method.equals("POST")) {
+	    handlePostMovie(exchange);
+	} // elif
+	else {
+	    sendJson(exchange, 405, Map.of("error", "method not allowed"));
+	} // else
+    } // handleMovies
+
+    /**
+     * Returns every movie stored in the database as JSON.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleGetMovies(HttpExchange exchange) throws IOException {
+	List<Movie> movies = DataHandler.getMovies(DB_PATH);
+
+	if (movies == null) {
+	    sendJson(exchange, 500, Map.of("error", "could not read database"));
+	    return;
+	} // if
+
+	sendJson(exchange, 200, movies);
+    } // handleGetMovies
+
+    /**
+     * Reads a movie title from the request body, builds a {@code Movie}
+     * (other fields default to empty), and stores it in the database.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handlePostMovie(HttpExchange exchange) throws IOException {
+	String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+	Map<?, ?> json;
+
+	try {
+	    json = GSON.fromJson(body, Map.class);
+	} catch (Exception e) {
+	    sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+	    return;
+	} // try-catch
+
+	Object titleObj = json == null ? null : json.get("title");
+	String title = titleObj == null ? "" : titleObj.toString().trim();
+
+	if (title.isEmpty()) {
+	    sendJson(exchange, 400, Map.of("error", "title is required"));
+	    return;
+	} // if
+
+	// only the title comes from the user right now; everything else defaults to empty
+	Movie movie = new Movie(title, "", "", "", "");
+	boolean saved = DataHandler.addMovie(movie, DB_PATH);
+
+	if (!saved) {
+	    sendJson(exchange, 500, Map.of("error", "could not save movie"));
+	    return;
+	} // if
+
+	sendJson(exchange, 201, movie);
+    } // handlePostMovie
+
+    /**
+     * Writes a JSON response with the given status code.
+     * @param exchange The HTTP exchange to respond to.
+     * @param status The HTTP status code.
+     * @param payload The object to serialize as JSON.
+     * @throws IOException if writing the response fails.
+     */
+    private static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
+	byte[] bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
+	exchange.getResponseHeaders().add("Content-Type", "application/json");
+	exchange.sendResponseHeaders(status, bytes.length);
+
+	try (OutputStream os = exchange.getResponseBody()) {
+	    os.write(bytes);
+	} // try
+    } // sendJson
+} // App
