@@ -2,6 +2,9 @@ package cs4050e.deliv2.db;
 
 /** Represents a movie and its related information. */
 public class Movie {
+    /** Database id. */
+    int id;
+
     /** Movie title. */
     String title;
     

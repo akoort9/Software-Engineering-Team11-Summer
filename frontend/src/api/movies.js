@@ -4,6 +4,11 @@ export async function fetchMovies() {
   return res.json()
 }
 
+export async function fetchMovie(id) {
+  const movies = await fetchMovies()
+  return movies.find((movie) => String(movie.id) === String(id)) ?? null
+}
+
 export async function addMovie(title) {
   const res = await fetch('/api/movies', {
     method: 'POST',

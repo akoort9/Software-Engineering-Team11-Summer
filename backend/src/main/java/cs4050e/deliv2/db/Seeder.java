@@ -19,7 +19,7 @@ public class Seeder {
 		  "horror",
 		  "A movie about a guy who wishes that his coworker " +
 		  "Nikki loves himself more than anyone else...",
-		  "http://www.impawards.com/2026/obsession_xlg.html",
+		  "https://image.tmdb.org/t/p/w500/bRwnj8WEKBCvmfeUNOukJPwB43K.jpg",
 		  "https://www.youtube.com/watch?v=gMC8kkwbIQQ",
 		  9,
 		  true),
