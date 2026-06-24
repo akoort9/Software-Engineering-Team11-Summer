@@ -92,14 +92,14 @@ public class DataHandler {
      * @return a {@code List} of {@code Movie}s if successful, {@code null} otherwise.
      */
     public static List<Movie> getMovies(String filepath) {
-	String sql = "SELECT title, genre, \"desc\", poster, trailer, rating, status FROM movies";
+	String sql = "SELECT id, title, genre, \"desc\", poster, trailer, rating, status FROM movies";
 	List<Movie> movies = new ArrayList<>();
 
 	try (Connection conn = connect(filepath);
 	     Statement stmt = conn.createStatement();
 	     ResultSet rs = stmt.executeQuery(sql)) {
 	    while (rs.next()) {
-		movies.add(new Movie(
+		Movie movie = new Movie(
 		    rs.getString("title"),
 		    rs.getString("genre"),
 		    rs.getString("desc"),
@@ -108,7 +108,9 @@ public class DataHandler {
 		    rs.getInt("rating"),
 		    rs.getBoolean("status")//,
 		    // rs.getString("showtimes")
-		));
+		);
+		movie.id = rs.getInt("id");
+		movies.add(movie);
 	    } // while
 
 	    return movies;
