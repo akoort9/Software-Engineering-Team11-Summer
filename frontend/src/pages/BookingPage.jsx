@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
+import { getShowtimes } from '../utils/showtimes.js'
 import '../styles/BookingPage.css'
 
 export default function BookingPage() {
@@ -11,12 +12,10 @@ export default function BookingPage() {
   const [selectedMovieId, setSelectedMovieId] = useState(
     searchParams.get('movieId') || ''
   )
-  const [showtime, setShowtime] = useState('')
+  const [showtime, setShowtime] = useState(searchParams.get('showtime') || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [bookingSuccess, setBookingSuccess] = useState(false)
-
-  const showtimes = ['2:00 PM', '5:00 PM', '7:00 PM', '9:00 PM', '11:00 PM']
 
   // Fetch movies on mount
   useEffect(() => {
@@ -38,6 +37,7 @@ export default function BookingPage() {
   }, [selectedMovieId, showtime])
 
   const selectedMovie = movies.find((m) => m.title === selectedMovieId)
+  const showtimes = getShowtimes(selectedMovie)
 
   // Demo booking handler (no backend calls)
   const handleBuyTicket = () => {
