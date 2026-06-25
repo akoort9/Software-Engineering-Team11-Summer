@@ -97,11 +97,20 @@
 }
 
 .showtime {
+  display: inline-block;
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--code-bg);
   color: var(--text-h);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.showtime:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
 }
 
 .trailer {

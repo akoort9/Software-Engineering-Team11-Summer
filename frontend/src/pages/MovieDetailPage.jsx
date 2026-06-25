@@ -63,7 +63,9 @@ export default function MovieDetailPage() {
           {showtimes.length > 0 ? (
             <ul className="showtimes">
               {showtimes.map((time) => (
-                <li key={time} className="showtime">{time}</li>
+                <li key={time}>
+                  <Link to="/booking" className="showtime">{time}</Link>
+                </li>
               ))}
             </ul>
           ) : (
