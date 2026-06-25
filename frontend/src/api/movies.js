@@ -18,3 +18,4 @@ export async function addMovie(title) {
   if (!res.ok) throw new Error('Failed to save movie')
   return res.json()
 }
+

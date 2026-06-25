@@ -62,7 +62,7 @@ export default function HomePage() {
       </ul>
 
       <p>
-        <Link to="/admin">Admin</Link>
+        <Link to="/booking">Book Seats</Link> | <Link to="/admin">Admin</Link>
       </p>
     </main>
   )
