@@ -54,9 +54,9 @@ export default function HomePage() {
       {!error && visibleMovies.length === 0 && <p>No movies found.</p>}
 
       <ul>
-        {visibleMovies.map((movie, index) => (
-          <li key={index}>
-            {movie.title} — {statusLabel(movie.status)}
+        {visibleMovies.map((movie) => (
+          <li key={movie.id}>
+            <Link to={`/movies/${movie.id}`}>{movie.title}</Link> — {statusLabel(movie.status)}
           </li>
         ))}
       </ul>
