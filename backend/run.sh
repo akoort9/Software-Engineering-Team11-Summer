@@ -2,4 +2,4 @@
 
 mvn -q clean
 mvn -q compile
-mvn exec:java -Dexec.mainClass=cs4050e.deliv2.App
+mvn exec:java -Dexec.mainClass=cs4050e.ces.App

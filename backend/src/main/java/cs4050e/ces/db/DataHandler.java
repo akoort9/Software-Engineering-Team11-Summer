@@ -1,4 +1,4 @@
-package cs4050e.deliv2.db;
+package cs4050e.ces.db;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

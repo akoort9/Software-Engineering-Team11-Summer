@@ -1,4 +1,4 @@
-package cs4050e.deliv2.db;
+package cs4050e.ces.db;
 
 /** Represents a movie and its related information. */
 public class Movie {

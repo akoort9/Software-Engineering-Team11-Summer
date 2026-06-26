@@ -1,4 +1,4 @@
-package cs4050e.deliv2;
+package cs4050e.ces;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -12,9 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import cs4050e.deliv2.db.DataHandler;
-import cs4050e.deliv2.db.Movie;
-import cs4050e.deliv2.db.Seeder;
+import cs4050e.ces.db.DataHandler;
+import cs4050e.ces.db.Movie;
+import cs4050e.ces.db.Seeder;
 
 /** Runs the HTTP API that the React frontend talks to. */
 public class App {

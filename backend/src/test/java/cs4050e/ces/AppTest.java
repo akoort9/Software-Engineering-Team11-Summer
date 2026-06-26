@@ -1,4 +1,4 @@
-package cs4050e.deliv2;
+package cs4050e.ces;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
