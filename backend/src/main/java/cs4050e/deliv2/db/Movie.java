@@ -3,31 +3,31 @@ package cs4050e.deliv2.db;
 /** Represents a movie and its related information. */
 public class Movie {
     /** Database id. */
-    int id;
+    int id = 0;
 
     /** Movie title. */
-    String title;
+    String title = "title";
     
     /** Movie genre. */
-    String genre;
+    String genre = "genre";
 
     /** Movie description. */
-    String desc;
+    String desc = "description";
 
     /** Represents URI to movie poster. */
-    String poster;
+    String poster = "poster";
     
     /** Represents URI to movie trailer. */
-    String trailer;
+    String trailer = "trailer";
 
     /** On a 0 to 10 scale, 5 representing 2.5 stars or 5/10, etc. */
-    int rating;
+    int rating = 0;
 
     /**
      * {@code true} - "Currently Running"
      * {@code false} - "Coming Soon"
      */
-    boolean status;
+    boolean status = false;
 
     /**
      * Comma separated string, each substring is a showtime for
@@ -108,5 +108,4 @@ public class Movie {
 		sameStatus &&
 		sameShowtimes);
     } // compare
-
 } // Movie
