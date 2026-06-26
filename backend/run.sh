@@ -1,6 +1,4 @@
-#!/bin/zsh -ex
-
-#truncate -s 0 ./db/listings.db
+#!/bin/bash -ex
 
 mvn -q clean
 mvn -q compile

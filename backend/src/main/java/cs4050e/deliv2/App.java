@@ -33,16 +33,9 @@ public class App {
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
-	/** Seeds database
-	for (int i = 0; i < Seeder.seed.length; i++) {
-	    DataHandler.addMovie(Seeder.seed[i], DB_PATH);
-	} // for
-	*/
-	
 	HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
 	server.createContext("/api/movies", App::handleMovies);
-
 	server.setExecutor(null);
 	server.start();
 	System.out.println("Listening on http://localhost:" + PORT);
@@ -117,7 +110,7 @@ public class App {
 	} // if
 
 	// only the title comes from the user right now; everything else defaults to empty
-	Movie movie = new Movie(title, "", "", "", "", 0, false);
+	Movie movie = new Movie(title, "", "", "", "", 0, false, "");
 	boolean saved = DataHandler.addMovie(movie, DB_PATH);
 
 	if (!saved) {
