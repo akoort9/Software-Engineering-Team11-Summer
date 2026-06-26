@@ -3,16 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { fetchMovie } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
 import { embedUrl } from '../utils/youtube.js'
+import { getShowtimes } from '../utils/showtimes.js'
 import '../App.css'
-
-function parseShowtimes(showtimes) {
-  if (!showtimes) return []
-  return showtimes
-    .split(';')
-    .flatMap((group) => group.split(','))
-    .map((time) => time.trim())
-    .filter(Boolean)
-}
 
 export default function MovieDetailPage() {
   const { id } = useParams()
@@ -38,7 +30,7 @@ export default function MovieDetailPage() {
     )
   }
 
-  const showtimes = parseShowtimes(movie.showtimes)
+  const showtimes = getShowtimes(movie)
   const trailer = embedUrl(movie.trailer)
 
   return (
@@ -64,7 +56,12 @@ export default function MovieDetailPage() {
             <ul className="showtimes">
               {showtimes.map((time) => (
                 <li key={time}>
-                  <Link to="/booking" className="showtime">{time}</Link>
+                  <Link
+                    to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
+                    className="showtime"
+                  >
+                    {time}
+                  </Link>
                 </li>
               ))}
             </ul>
