@@ -1,4 +1,4 @@
-package cs4050e.deliv2;
+package cs4050e.ces;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import cs4050e.deliv2.db.Movie;
-import cs4050e.deliv2.db.DataHandler;
+import cs4050e.ces.db.Movie;
+import cs4050e.ces.db.DataHandler;
 
 /**
  * Unit test for simple App.

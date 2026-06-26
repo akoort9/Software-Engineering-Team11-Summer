@@ -1,7 +1,5 @@
-#!/bin/zsh -ex
-
-#truncate -s 0 ./db/listings.db
+#!/bin/bash -ex
 
 mvn -q clean
 mvn -q compile
-mvn exec:java -Dexec.mainClass=cs4050e.deliv2.App
+mvn exec:java -Dexec.mainClass=cs4050e.ces.App

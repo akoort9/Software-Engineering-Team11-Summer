@@ -1,4 +1,4 @@
-package cs4050e.deliv2.db;
+package cs4050e.ces.db;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -92,7 +92,7 @@ public class DataHandler {
      * @return a {@code List} of {@code Movie}s if successful, {@code null} otherwise.
      */
     public static List<Movie> getMovies(String filepath) {
-	String sql = "SELECT id, title, genre, \"desc\", poster, trailer, rating, status FROM movies";
+	String sql = "SELECT id, title, genre, \"desc\", poster, trailer, rating, status, showtimes FROM movies";
 	List<Movie> movies = new ArrayList<>();
 
 	try (Connection conn = connect(filepath);
@@ -106,8 +106,8 @@ public class DataHandler {
 		    rs.getString("poster"),
 		    rs.getString("trailer"),
 		    rs.getInt("rating"),
-		    rs.getBoolean("status")//,
-		    // rs.getString("showtimes")
+		    rs.getBoolean("status"),
+		    rs.getString("showtimes")
 		);
 		movie.id = rs.getInt("id");
 		movies.add(movie);

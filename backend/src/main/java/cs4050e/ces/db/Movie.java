@@ -1,35 +1,35 @@
-package cs4050e.deliv2.db;
+package cs4050e.ces.db;
 
 /** Represents a movie and its related information. */
 public class Movie {
     /** Database id. */
-    int id;
+    int id = 0;
 
     /** Movie title. */
-    String title;
+    String title = "title";
     
-    /** Can be made into an {@code enum} later for easier filtering. */
-    String genre;
+    /** Movie genre. */
+    String genre = "genre";
 
     /** Movie description. */
-    String desc;
+    String desc = "description";
 
-    /** Placeholder. Represents URI to movie poster. */
-    String poster;
+    /** Represents URI to movie poster. */
+    String poster = "poster";
     
-    /** Placeholder. Represents URI to movie trailer. */
-    String trailer;
+    /** Represents URI to movie trailer. */
+    String trailer = "trailer";
 
-    /** On a 0 to 10 scale, 5 representing 2.5 stars, etc. */
-    int rating;
+    /** On a 0 to 10 scale, 5 representing 2.5 stars or 5/10, etc. */
+    int rating = 0;
 
     /**
      * {@code true} - "Currently Running"
      * {@code false} - "Coming Soon"
      */
-    boolean status;
+    boolean status = false;
 
-    /** Hardcoded.
+    /**
      * Comma separated string, each substring is a showtime for
      * the movie. A semicolon denotes the end of the string.
      */
@@ -43,7 +43,7 @@ public class Movie {
      * @param trailer The movie's promotional trailer.
      * @param rating The movie's rating.
      * @param status Whether the movie is 'Currently Showing' or not ('Coming Soon').
-     * @param showtimes A comma separated list of the movie's showtimes. Hardcoded at the moment.
+     * @param showtimes A comma separated list of the movie's showtimes.
      * @throws IllegalArgumentException if {@code rating} is not between 0 and 10.
      * @throws NullPointerException if any {@code String} parameter is {@code null}.
      */
@@ -53,13 +53,17 @@ public class Movie {
 		 String poster,
 		 String trailer,
 		 int rating,
-		 boolean status) {
+		 boolean status,
+		 String showtimes) {
 	// null check
-	if (title == null ||
-	     genre == null ||
-	     desc == null ||
-	     poster == null ||
-	     trailer == null) {
+	boolean nullCheck = (title == null ||
+			     genre == null ||
+			     desc == null ||
+			     poster == null ||
+			     trailer == null ||
+			     showtimes == null);
+	// error handling
+	if (nullCheck) {
 	    throw new NullPointerException("no string parameters can be null.");
 	} else if (rating < 0 || rating > 10) {
 	    throw new IllegalArgumentException("rating must be between 0 and 10");
@@ -71,6 +75,7 @@ public class Movie {
 	    this.trailer = trailer;
 	    this.status = status;
 	    this.rating = rating;
+	    this.showtimes = showtimes;
 	} // if-else
     } // Movie
 
@@ -103,5 +108,4 @@ public class Movie {
 		sameStatus &&
 		sameShowtimes);
     } // compare
-    
 } // Movie
