@@ -13,6 +13,11 @@ export default function BookingPage() {
     searchParams.get('movieId') || ''
   )
   const [showtime, setShowtime] = useState(searchParams.get('showtime') || '')
+  const [ticketCounts, setTicketCounts] = useState({
+    child: 0,
+    adult: 0,
+    senior: 0,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [bookingSuccess, setBookingSuccess] = useState(false)
@@ -38,6 +43,16 @@ export default function BookingPage() {
 
   const selectedMovie = movies.find((m) => m.title === selectedMovieId)
   const showtimes = getShowtimes(selectedMovie)
+
+  const updateTicketCount = (type, delta) => {
+    setTicketCounts((current) => {
+      const next = Math.max(0, current[type] + delta)
+      return { ...current, [type]: next }
+    })
+  }
+
+  const totalTickets =
+    ticketCounts.child + ticketCounts.adult + ticketCounts.senior
 
   // Demo booking handler (no backend calls)
   const handleBuyTicket = () => {
@@ -113,7 +128,39 @@ export default function BookingPage() {
         {selectedMovie && showtime && (
           <div className="seat-selection">
             <h2>{selectedMovie.title} - {showtime}</h2>
+
+            <div className="ticket-types">
+              <h3>Choose ticket quantities</h3>
+              {['child', 'adult', 'senior'].map((type) => {
+                const label = type.charAt(0).toUpperCase() + type.slice(1)
+                return (
+                  <div key={type} className="ticket-type-row">
+                    <div className="ticket-type-label">{label}</div>
+                    <div className="ticket-counter">
+                      <button
+                        type="button"
+                        className="counter-button"
+                        onClick={() => updateTicketCount(type, -1)}
+                        disabled={ticketCounts[type] === 0}
+                      >
+                        −
+                      </button>
+                      <span>{ticketCounts[type]}</span>
+                      <button
+                        type="button"
+                        className="counter-button"
+                        onClick={() => updateTicketCount(type, 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
             <div className="screen">SCREEN</div>
+
             {loading ? (
               <p>Booking Seat</p>
             ) : (
@@ -139,7 +186,11 @@ export default function BookingPage() {
                   ))}
                 </div>
 
-                <button onClick={handleBuyTicket} className="book-button">
+                <button
+                  onClick={handleBuyTicket}
+                  className="book-button"
+                  disabled={totalTickets === 0}
+                >
                   {loading ? 'Processing...' : 'Buy Tickets'}
                 </button>
               </div>

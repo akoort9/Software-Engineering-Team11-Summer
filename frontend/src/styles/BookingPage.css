@@ -125,6 +125,77 @@
   text-align: center;
 }
 
+.ticket-types {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.ticket-types h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #111827;
+}
+
+.ticket-type-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.ticket-type-row:first-of-type {
+  border-top: none;
+}
+
+.ticket-type-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.ticket-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+
+.counter-button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 9999px;
+  background: #2563eb;
+  color: white;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.counter-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.ticket-counter span {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 700;
+  color: #111827;
+}
+
 .demo-seats-grid {
   display: grid;
   gap: 8px;
