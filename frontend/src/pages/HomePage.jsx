@@ -53,13 +53,22 @@ export default function HomePage() {
 
       {!error && visibleMovies.length === 0 && <p>No movies found.</p>}
 
-      <ul>
+      <div className="movie-grid">
         {visibleMovies.map((movie) => (
-          <li key={movie.id}>
-            <Link to={`/movies/${movie.id}`}>{movie.title}</Link> — {statusLabel(movie.status)}
-          </li>
+          <article key={movie.id} className="movie-card">
+            <h2>
+              <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+            </h2>
+            <p className="movie-genre">{movie.genre}</p>
+            <p className="movie-status">{statusLabel(movie.status)}</p>
+            <div className="movie-showtimes">
+              <span>2:00 PM</span>
+              <span>5:00 PM</span>
+              <span>8:00 PM</span>
+            </div>
+          </article>
         ))}
-      </ul>
+      </div>
 
       <p>
         <Link to="/booking">Book Seats</Link> | <Link to="/admin">Admin</Link>
