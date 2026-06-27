@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
+import { getShowtimes } from '../utils/showtimes.js'
 
 export default function HomePage() {
   const [movies, setMovies] = useState([])
@@ -53,13 +54,33 @@ export default function HomePage() {
 
       {!error && visibleMovies.length === 0 && <p>No movies found.</p>}
 
-      <ul>
+      <div className="movie-grid">
         {visibleMovies.map((movie) => (
-          <li key={movie.id}>
-            <Link to={`/movies/${movie.id}`}>{movie.title}</Link> — {statusLabel(movie.status)}
-          </li>
+          <article key={movie.id} className="movie-card">
+            <h2>
+              <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+            </h2>
+              <p className="movie-genre">{movie.genre}</p>
+              <p className="movie-status">{statusLabel(movie.status)}</p>
+	      {getShowtimes(movie).length > 0 ? (  
+		<ul className="showtimes">
+		    {getShowtimes(movie).map((time) => (
+			<li key={time}>
+			    <Link
+				to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
+				className="showtime"
+			    >
+				{time}
+			    </Link>
+			</li>
+		  ))}
+		</ul>
+	      ) : (
+		  <p>No showtimes listed.</p>
+	      )}
+          </article>
         ))}
-      </ul>
+      </div>
 
       <p>
         <Link to="/booking">Book Seats</Link> | <Link to="/admin">Admin</Link>
