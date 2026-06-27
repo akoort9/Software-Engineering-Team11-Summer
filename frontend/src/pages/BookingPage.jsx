@@ -22,6 +22,12 @@ export default function BookingPage() {
   const [error, setError] = useState('')
   const [bookingSuccess, setBookingSuccess] = useState(false)
 
+  const ticketPrices = {
+    child: 8,
+    adult: 12,
+    senior: 10,
+  }
+
   // Fetch movies on mount
   useEffect(() => {
     fetchMovies()
@@ -54,6 +60,11 @@ export default function BookingPage() {
   const totalTickets =
     ticketCounts.child + ticketCounts.adult + ticketCounts.senior
 
+  const totalCost =
+    ticketCounts.child * ticketPrices.child +
+    ticketCounts.adult * ticketPrices.adult +
+    ticketCounts.senior * ticketPrices.senior
+
   // Demo booking handler (no backend calls)
   const handleBuyTicket = () => {
     setError('')
@@ -63,6 +74,7 @@ export default function BookingPage() {
       setBookingSuccess(true)
       setShowtime('')
       setSelectedMovieId('')
+      setTicketCounts({ child: 0, adult: 0, senior: 0 })
       setTimeout(() => {
         setBookingSuccess(false)
         navigate('/')
@@ -135,7 +147,12 @@ export default function BookingPage() {
                 const label = type.charAt(0).toUpperCase() + type.slice(1)
                 return (
                   <div key={type} className="ticket-type-row">
-                    <div className="ticket-type-label">{label}</div>
+                    <div className="ticket-type-details">
+                      <div className="ticket-type-label">{label}</div>
+                      <div className="ticket-price">
+                        ${ticketPrices[type].toFixed(2)} each
+                      </div>
+                    </div>
                     <div className="ticket-counter">
                       <button
                         type="button"
@@ -186,13 +203,16 @@ export default function BookingPage() {
                   ))}
                 </div>
 
-                <button
-                  onClick={handleBuyTicket}
-                  className="book-button"
-                  disabled={totalTickets === 0}
-                >
-                  {loading ? 'Processing...' : 'Buy Tickets'}
-                </button>
+                <div className="purchase-summary">
+                  <div className="total-cost">Total: ${totalCost.toFixed(2)}</div>
+                  <button
+                    onClick={handleBuyTicket}
+                    className="book-button"
+                    disabled={totalTickets === 0}
+                  >
+                    {loading ? 'Processing...' : 'Buy Tickets'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

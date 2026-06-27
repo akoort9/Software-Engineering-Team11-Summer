@@ -301,10 +301,37 @@
   border-top: 1px solid #ddd;
 }
 
+.ticket-type-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ticket-price {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.purchase-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.total-cost {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
 .book-button {
-  width: 100%;
-  max-width: var(--booking-header-width);
-  margin: 15px auto 0 auto;
+  width: 50%;
+  max-width: calc(var(--booking-header-width) / 2);
+  margin: 0;
   padding: 12px;
   background-color: #4caf50;
   color: white;
