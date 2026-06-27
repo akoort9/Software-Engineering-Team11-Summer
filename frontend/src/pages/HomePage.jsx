@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
+import { getShowtimes } from '../utils/showtimes.js'
 
 export default function HomePage() {
   const [movies, setMovies] = useState([])
@@ -59,13 +60,24 @@ export default function HomePage() {
             <h2>
               <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
             </h2>
-            <p className="movie-genre">{movie.genre}</p>
-            <p className="movie-status">{statusLabel(movie.status)}</p>
-            <div className="movie-showtimes">
-              <span>2:00 PM</span>
-              <span>5:00 PM</span>
-              <span>8:00 PM</span>
-            </div>
+              <p className="movie-genre">{movie.genre}</p>
+              <p className="movie-status">{statusLabel(movie.status)}</p>
+	      {getShowtimes(movie).length > 0 ? (  
+		<ul className="showtimes">
+		    {getShowtimes(movie).map((time) => (
+			<li key={time}>
+			    <Link
+				to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
+				className="showtime"
+			    >
+				{time}
+			    </Link>
+			</li>
+		  ))}
+		</ul>
+	      ) : (
+		  <p>No showtimes listed.</p>
+	      )}
           </article>
         ))}
       </div>
