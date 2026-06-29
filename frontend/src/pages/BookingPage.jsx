@@ -21,11 +21,37 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [bookingSuccess, setBookingSuccess] = useState(false)
+  const [selectedSeats, setSelectedSeats] = useState([])
 
   const ticketPrices = {
     child: 8,
     adult: 12,
     senior: 10,
+  }
+
+  // constants for seat selection - jh
+  const totalTickets =
+    ticketCounts.child + ticketCounts.adult + ticketCounts.senior
+  const selectedSeatCount = selectedSeats.length
+  const canConfirmBooking = totalTickets > 0 && selectedSeatCount === totalTickets
+
+  // functions for seat selection - jh
+  useEffect(() => {
+    setSelectedSeats((current) => {
+      if (totalTickets === 0) return []
+      if (current.length > totalTickets) return current.slice(0, totalTickets)
+      return current
+    })
+  }, [totalTickets])
+
+  const handleToggleSeat = (label) => {
+    setSelectedSeats((current) => {
+      if (current.includes(label)) {
+        return current.filter((seat) => seat !== label)
+      }
+      if (current.length >= totalTickets) return current
+      return [...current, label]
+    })
   }
 
   // Fetch movies on mount
@@ -57,9 +83,6 @@ export default function BookingPage() {
     })
   }
 
-  const totalTickets =
-    ticketCounts.child + ticketCounts.adult + ticketCounts.senior
-
   const totalCost =
     ticketCounts.child * ticketPrices.child +
     ticketCounts.adult * ticketPrices.adult +
@@ -75,6 +98,7 @@ export default function BookingPage() {
       setShowtime('')
       setSelectedMovieId('')
       setTicketCounts({ child: 0, adult: 0, senior: 0 })
+      setSelectedSeats([])
       setTimeout(() => {
         setBookingSuccess(false)
         navigate('/')
@@ -178,6 +202,12 @@ export default function BookingPage() {
 
             <div className="screen">SCREEN</div>
 
+            <div className="seat-instructions">
+              {totalTickets === 0
+                ? 'Choose ticket quantities to start selecting seats.'
+                : `Select ${totalTickets} seat${totalTickets === 1 ? '' : 's'} (${selectedSeatCount}/${totalTickets})`}
+            </div>
+
             {loading ? (
               <p>Booking Seat</p>
             ) : (
@@ -188,15 +218,22 @@ export default function BookingPage() {
                       {Array.from({ length: 8 }).map((_, i) => {
                         const label = `${row}${i + 1}`
                         // mark some seats as booked for the demo
-                        const booked = (row === 'B' && i % 3 === 0) || (row === 'C' && i % 4 === 0)
+                        const booked =
+                          (row === 'B' && i % 3 === 0) ||
+                          (row === 'C' && i % 4 === 0)
+                        const selected = selectedSeats.includes(label)
                         return (
-                          <div
+                          <button
                             key={label}
-                            className={`seat ${booked ? 'booked' : ''}`}
+                            type="button"
+                            className={`seat ${booked ? 'booked' : selected ? 'selected' : ''}`}
                             title={`Seat ${label}`}
+                            disabled={booked || totalTickets === 0}
+                            onClick={() => handleToggleSeat(label)}
+                            aria-pressed={selected}
                           >
                             {label}
-                          </div>
+                          </button>
                         )
                       })}
                     </div>
@@ -208,7 +245,7 @@ export default function BookingPage() {
                   <button
                     onClick={handleBuyTicket}
                     className="book-button"
-                    disabled={totalTickets === 0}
+                    disabled={!canConfirmBooking || loading}
                   >
                     {loading ? 'Processing...' : 'Buy Tickets'}
                   </button>
