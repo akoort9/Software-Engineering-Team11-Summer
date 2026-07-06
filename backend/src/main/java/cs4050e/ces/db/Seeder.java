@@ -1,5 +1,7 @@
 package cs4050e.ces.db;
 
+import cs4050e.ces.db.theatre.Movie;
+
 /**
  * Separate class responsible for seeding the movie
  * database when needed.
@@ -113,13 +115,12 @@ public class Seeder {
 
     /** Seeds the movie database with the above entries. */
     private static void seed() {
-	for (int i = 0; i < seed.length; i++) {
-	    DataHandler.addMovie(seed[i], DB_PATH);
-	} // for
+		for (int i = 0; i < seed.length; i++) {
+			DataHandler.addMovie(seed[i], DB_PATH);
+		} // for
     } // seed
 
     public static void main(String[] args) {
-	seed();
-    } // main
-    
+		seed();
+    } // main  
 } // Seeder

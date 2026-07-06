@@ -13,8 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import cs4050e.ces.db.DataHandler;
-import cs4050e.ces.db.Movie;
-import cs4050e.ces.db.Seeder;
+import cs4050e.ces.db.theatre.Movie;
 
 /** Runs the HTTP API that the React frontend talks to. */
 public class App {
@@ -33,12 +32,12 @@ public class App {
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
-	HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
+		HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
-	server.createContext("/api/movies", App::handleMovies);
-	server.setExecutor(null);
-	server.start();
-	System.out.println("Listening on http://localhost:" + PORT);
+		server.createContext("/api/movies", App::handleMovies);
+		server.setExecutor(null);
+		server.start();
+		System.out.println("Listening on http://localhost:" + PORT);
     } // main
 
     /**
@@ -47,25 +46,25 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleMovies(HttpExchange exchange) throws IOException {
-	// allow the React dev server (different origin) to call this API
-	exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-	exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-	exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
 
-	String method = exchange.getRequestMethod();
+		String method = exchange.getRequestMethod();
 
-	if (method.equals("OPTIONS")) {
-	    exchange.sendResponseHeaders(204, -1);
-	} // if
-	else if (method.equals("GET")) {
-	    handleGetMovies(exchange);
-	} // elif
-	else if (method.equals("POST")) {
-	    handlePostMovie(exchange);
-	} // elif
-	else {
-	    sendJson(exchange, 405, Map.of("error", "method not allowed"));
-	} // else
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+		} // if
+		else if (method.equals("GET")) {
+			handleGetMovies(exchange);
+		} // elif
+		else if (method.equals("POST")) {
+			handlePostMovie(exchange);
+		} // elif
+		else {
+			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+		} // else
     } // handleMovies
 
     /**
@@ -74,14 +73,14 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleGetMovies(HttpExchange exchange) throws IOException {
-	List<Movie> movies = DataHandler.getMovies(DB_PATH);
+		List<Movie> movies = DataHandler.getMovies(DB_PATH);
 
-	if (movies == null) {
-	    sendJson(exchange, 500, Map.of("error", "could not read database"));
-	    return;
-	} // if
+		if (movies == null) {
+			sendJson(exchange, 500, Map.of("error", "could not read database"));
+			return;
+		} // if
 
-	sendJson(exchange, 200, movies);
+		sendJson(exchange, 200, movies);
     } // handleGetMovies
 
     /**
@@ -91,34 +90,34 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostMovie(HttpExchange exchange) throws IOException {
-	String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-	Map<?, ?> json;
+		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		Map<?, ?> json;
 
-	try {
-	    json = GSON.fromJson(body, Map.class);
-	} catch (Exception e) {
-	    sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-	    return;
-	} // try-catch
+		try {
+			json = GSON.fromJson(body, Map.class);
+		} catch (Exception e) {
+			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} // try-catch
 
-	Object titleObj = json == null ? null : json.get("title");
-	String title = titleObj == null ? "" : titleObj.toString().trim();
+		Object titleObj = json == null ? null : json.get("title");
+		String title = titleObj == null ? "" : titleObj.toString().trim();
 
-	if (title.isEmpty()) {
-	    sendJson(exchange, 400, Map.of("error", "title is required"));
-	    return;
-	} // if
+		if (title.isEmpty()) {
+			sendJson(exchange, 400, Map.of("error", "title is required"));
+			return;
+		} // if
 
-	// only the title comes from the user right now; everything else defaults to empty
-	Movie movie = new Movie(title, "", "", "", "", 0, false, "");
-	boolean saved = DataHandler.addMovie(movie, DB_PATH);
+		// only the title comes from the user right now; everything else defaults to empty
+		Movie movie = new Movie(title, "", "", "", "", 0, false, "");
+		boolean saved = DataHandler.addMovie(movie, DB_PATH);
 
-	if (!saved) {
-	    sendJson(exchange, 500, Map.of("error", "could not save movie"));
-	    return;
-	} // if
+		if (!saved) {
+			sendJson(exchange, 500, Map.of("error", "could not save movie"));
+			return;
+		} // if
 
-	sendJson(exchange, 201, movie);
+		sendJson(exchange, 201, movie);
     } // handlePostMovie
 
     /**
@@ -129,12 +128,12 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
-	byte[] bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
-	exchange.getResponseHeaders().add("Content-Type", "application/json");
-	exchange.sendResponseHeaders(status, bytes.length);
+		byte[] bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
+		exchange.getResponseHeaders().add("Content-Type", "application/json");
+		exchange.sendResponseHeaders(status, bytes.length);
 
-	try (OutputStream os = exchange.getResponseBody()) {
-	    os.write(bytes);
-	} // try
+		try (OutputStream os = exchange.getResponseBody()) {
+			os.write(bytes);
+		} // try
     } // sendJson
 } // App

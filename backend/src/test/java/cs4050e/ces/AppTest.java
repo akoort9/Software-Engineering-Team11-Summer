@@ -6,65 +6,52 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import cs4050e.ces.db.Movie;
+
 import cs4050e.ces.db.DataHandler;
+import cs4050e.ces.db.theatre.Movie;
 
 /**
  * Unit test for simple App.
  */
 public class AppTest {
-    Movie obsession = new Movie("Obsession",
-				"horror",
-				"A movie about a guy who wishes that his coworker " +
-				"Nikki loves himself more than anyone else...",
-				"http://www.impawards.com/2026/obsession_xlg.html",
-				"https://www.youtube.com/watch?v=gMC8kkwbIQQ");
+    
+	private static final String DB_PATH = "./db/listings.db";
 
-    Movie chainsawMan = new Movie("Chainsaw Man -- The Movie: Reze Arc",
-				  "action",
-				  "Chainsaw Man faces his deadliest battle yet in " +
-				  "a brutal war between devils, hunters and secret enemies.",
-				  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5EDz7NsypfyMnD8hrsTXfQgufO6SfM_Sh8maLxxmHB1ZnCITA",
-				  "https://www.youtube.com/watch?v=tAzAhDNdehs");
+	List<Movie> seedMovies = DataHandler.getMovies(DB_PATH);
 
-    Movie[] movies = {obsession, chainsawMan};
+	Movie movie = new Movie("title",
+		"genre",
+		"description",
+		"poster",
+		"trailer",
+		5,
+		true,
+		"2:00 PM,5:00 PM,8:00 PM;");
 
     /**
-     * Rigorous Test :-)
+     * Adds a movie
      */
     @Test
     public void testAddMovie() {
-	for (Movie movie : movies) {
-	    assertTrue(DataHandler.addMovie(movie, "./db/listings.db"));
-	} // for
+		assertTrue(DataHandler.addMovie(movie, DB_PATH));
     }
 
     /**
-     * Rigorous Test :-)
+     * Gets a movie
      */
     @Test
     public void testGetMovies() {
-	assertNotNull(DataHandler.getMovies("./db/listings.db"));
+		seedMovies = DataHandler.getMovies(DB_PATH);
+		assertNotNull(seedMovies.get(0));
     }
 
     /**
-     * Rigorous Test :-)
+     * Checks if we got the same movie
      */
     @Test
     public void testGetMoviesContents() {
-	for (Movie movie : movies) {
-	    DataHandler.addMovie(movie, "./db/listings.db");
-	} // for
-
-	List<Movie> dbMovies = DataHandler.getMovies("./db/listings.db");
-	boolean foundObsession = false;
-
-	for (Movie movie : dbMovies) {
-	    if (movie.compare(obsession)) {
-		foundObsession = true;
-	    } // if
-	} // for
-
-	assertTrue(foundObsession);
+		seedMovies = DataHandler.getMovies(DB_PATH);
+		Movie dbMovie = seedMovies.get(0);
+		assertTrue(movie.compare(dbMovie));
     }
 }

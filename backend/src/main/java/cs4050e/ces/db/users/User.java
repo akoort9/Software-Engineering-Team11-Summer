@@ -1,5 +1,6 @@
 package cs4050e.ces.db.users;
 
+/** Represents a user of the system. */
 public abstract class User {
     /** The user ID of a given user. */
     protected int id;
@@ -17,9 +18,16 @@ public abstract class User {
      * @param password The user's account password.
      */
     public User(int id, String email, String password) {
-	this.id = id;
-	this.email = email;
-	this.password = password;
+	    this.id = id;
+	    this.email = email;
+	    this.password = password;
     } // User
     
+    public boolean login() {
+        throw new UnsupportedOperationException("method not yet implemented");
+    } // login
+
+    public void logout() {
+        throw new UnsupportedOperationException("method not yet implemented");
+    } // logout
 } // User

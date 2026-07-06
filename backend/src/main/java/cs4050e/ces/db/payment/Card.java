@@ -2,6 +2,7 @@ package cs4050e.ces.db.payment;
 
 import java.time.YearMonth;
 
+/** Represents a {@code User}'s credit/debit card.  */
 public class Card {
     /** The card number. */
     private String cardNumber;
@@ -20,8 +21,17 @@ public class Card {
      * @param month The month of the expiration date.
      */
     public Card(String cardNumber, String billingAddress, int year, int month) {
-	this.cardNumber = cardNumber;
-	this.billingAddress = billingAddress;
-	this.expirationDate = YearMonth.of(year, month);
+	    this.cardNumber = cardNumber;
+	    this.billingAddress = billingAddress;
+	    this.expirationDate = YearMonth.of(year, month);
     } // Card
+
+    /**
+     * Returns whether the card is expired or not.
+     * @return {@code true} if the current date is past the expiration date,
+     * and {@code false} otherwise.
+     */
+    public boolean isExpired() {
+        return YearMonth.now().isAfter(this.expirationDate);
+    } // isExpired
 } // Card
