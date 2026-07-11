@@ -40,7 +40,4 @@ class Schema {
     public static final String ADD_MOVIE = "INSERT INTO movies (" +
                     "title, genre, \"desc\", poster, trailer, rating, status, showtimes) " +
 	    	        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    /** SQL statement to get all movie info. */
-    public static final String MOVIE_INFO = "SELECT * FROM movies";
 } // Schema

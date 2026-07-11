@@ -205,9 +205,10 @@ public class DataHandler {
 				);
 			} // while
 
+			rs.close();
 			return movie;
 		} catch (SQLException sqle) {
-			System.err.println("addMovie: " + sqle);
+			System.err.println("getMovie: " + sqle);
 		    return null;
 		} // try-catch
 

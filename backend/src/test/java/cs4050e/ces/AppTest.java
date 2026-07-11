@@ -27,6 +27,14 @@ public class AppTest {
 		"2:00 PM,5:00 PM,8:00 PM;");
 
     /**
+     * Seeds the database
+     */
+    @Test
+    public void testSeed() {
+      assertTrue(db.wipe());
+    } // testSeed
+
+    /**
      * Adds a movie
      */
     @Test
