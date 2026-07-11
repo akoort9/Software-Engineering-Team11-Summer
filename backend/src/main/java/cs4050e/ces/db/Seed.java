@@ -2,14 +2,11 @@ package cs4050e.ces.db;
 
 import cs4050e.ces.db.theatre.Movie;
 
-/**
- * Separate class responsible for seeding the movie
- * database when needed.
- */
-public class Seeder {
-    private static final String DB_PATH = "./db/listings.db";
-
-    private static final Movie[] seed = {
+/** Holds seed variables. */
+class Seed {
+	
+	/** Seed for movies. */
+    public static final Movie[] movies = {
 	new Movie("Obsession",
 		  "horror",
 		  "A movie about a guy who wishes that his coworker " +
@@ -113,14 +110,4 @@ public class Seeder {
 		  "2:00 PM,5:00 PM,8:00 PM;")
     };
 
-    /** Seeds the movie database with the above entries. */
-    private static void seed() {
-		for (int i = 0; i < seed.length; i++) {
-			DataHandler.addMovie(seed[i], DB_PATH);
-		} // for
-    } // seed
-
-    public static void main(String[] args) {
-		seed();
-    } // main  
 } // Seeder

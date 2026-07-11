@@ -20,8 +20,8 @@ public class App {
     /** Port the server listens on. */
     private static final int PORT = 8080;
 
-    /** Path to the SQLite database file. */
-    private static final String DB_PATH = "./db/listings.db";
+    /** Connection to the database. */
+    private static final DataHandler db = DataHandler.getInstance();
 
     /** GSON object. */
     private static final Gson GSON = new GsonBuilder().create();
@@ -73,7 +73,7 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleGetMovies(HttpExchange exchange) throws IOException {
-		List<Movie> movies = DataHandler.getMovies(DB_PATH);
+		List<Movie> movies = db.getMovies();
 
 		if (movies == null) {
 			sendJson(exchange, 500, Map.of("error", "could not read database"));
@@ -110,7 +110,7 @@ public class App {
 
 		// only the title comes from the user right now; everything else defaults to empty
 		Movie movie = new Movie(title, "", "", "", "", 0, false, "");
-		boolean saved = DataHandler.addMovie(movie, DB_PATH);
+		boolean saved = db.addMovie(movie);
 
 		if (!saved) {
 			sendJson(exchange, 500, Map.of("error", "could not save movie"));

@@ -4,6 +4,9 @@ import cs4050e.ces.db.DataHandler;
 
 /** Represents a ticket to one {@code Seat} for a {@code Showtime}. */
 public class Ticket {
+    /** Connection to the database. */
+    private static final DataHandler db = DataHandler.getInstance();
+
     /**
      * Tracks the type of the ticket and therefore its price
      * {@code ADULT} - Adult price ticket.
@@ -37,6 +40,6 @@ public class Ticket {
 
         this.ticketId = id;
         this.ticketType = type;
-        this.price = DataHandler.getTicketPrice(this.ticketType);
+        this.price = db.getTicketPrice(this.ticketType);
     } // Ticket
 } // Ticket

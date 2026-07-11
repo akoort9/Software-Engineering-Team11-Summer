@@ -14,16 +14,14 @@ import cs4050e.ces.db.theatre.Movie;
  * Unit test for simple App.
  */
 public class AppTest {
-    
-	private static final String DB_PATH = "./db/listings.db";
+  /** Connection to the database. */
+	private static final DataHandler db = DataHandler.getInstance();
 
-	List<Movie> seedMovies = DataHandler.getMovies(DB_PATH);
-
-	Movie movie = new Movie("title",
-		"genre",
-		"description",
-		"poster",
-		"trailer",
+	Movie movie = new Movie("gleep",
+		"gleep",
+		"gleep",
+		"gleep",
+		"gleep",
 		5,
 		true,
 		"2:00 PM,5:00 PM,8:00 PM;");
@@ -33,25 +31,27 @@ public class AppTest {
      */
     @Test
     public void testAddMovie() {
-		assertTrue(DataHandler.addMovie(movie, DB_PATH));
-    }
+		  assertTrue(db.addMovie(this.movie));
+    } // testAddMovie
 
+    
     /**
      * Gets a movie
      */
     @Test
-    public void testGetMovies() {
-		seedMovies = DataHandler.getMovies(DB_PATH);
-		assertNotNull(seedMovies.get(0));
-    }
+    public void testGetMovie() {
+		  Movie dbMovie = db.getMovie(this.movie.getTitle());
+      //assertTrue(true);
+		  assertNotNull(dbMovie);
+    } // testGetMovies
 
     /**
      * Checks if we got the same movie
      */
     @Test
-    public void testGetMoviesContents() {
-		seedMovies = DataHandler.getMovies(DB_PATH);
-		Movie dbMovie = seedMovies.get(0);
-		assertTrue(movie.compare(dbMovie));
-    }
-}
+    public void testGetMovieContents() {
+		  Movie dbMovie = db.getMovie(this.movie.getTitle());
+		  assertTrue(dbMovie.compare(this.movie));
+      //assertTrue(true);
+    } // testGetMoviesContents
+} // AppTest
