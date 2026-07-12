@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
-import cs4050e.ces.db.users.*;;
+import cs4050e.ces.db.users.*;
+import cs4050e.ces.db.users.Customer.CustomerState;;
 
 /**
  * Unit test for simple App.
@@ -54,6 +55,7 @@ public class AppTest {
     @Test
     public void testAddMovie() {
 		  assertTrue(db.addMovie(this.movie));
+      db.wipe();
     } // testAddMovie
 
     /**
@@ -62,6 +64,7 @@ public class AppTest {
     @Test
     public void testAddCustomer() {
 		  assertTrue(db.addUser(this.customer));
+      db.wipe();
     } // testAddCustomer
 
     /**
@@ -70,6 +73,7 @@ public class AppTest {
     @Test
     public void testAddAdmin() {
 		  assertTrue(db.addUser(this.admin));
+      db.wipe();
     } // testAddAdmin
 
     
@@ -78,8 +82,10 @@ public class AppTest {
      */
     @Test
     public void testGetMovie() {
+      db.addMovie(this.movie);
 		  Movie dbMovie = db.getMovie(this.movie.getTitle());
 		  assertNotNull(dbMovie);
+      db.wipe();
     } // testGetMovie
 
     /**
@@ -87,8 +93,10 @@ public class AppTest {
      */
     @Test
     public void testGetCustomer() {
+      db.addUser(this.customer);
 		  Customer customer = (Customer) db.getUser(this.customer.getEmail());
 		  assertNotNull(customer);
+      db.wipe();
     } // testGetCustomer
 
     /**
@@ -96,8 +104,10 @@ public class AppTest {
      */
     @Test
     public void testGetAdmin() {
+      db.addUser(this.admin);
 		  Administrator admin = (Administrator) db.getUser(this.admin.getEmail());
 		  assertNotNull(admin);
+      db.wipe();
     } // testGetAdmin
 
     /**
@@ -105,8 +115,10 @@ public class AppTest {
      */
     @Test
     public void testGetMovieContents() {
+		  db.addMovie(this.movie);
 		  Movie dbMovie = db.getMovie(this.movie.getTitle());
 		  assertTrue(dbMovie.compare(this.movie));
+      db.wipe();
     } // testGetMovieContents
 
     /**
@@ -114,8 +126,10 @@ public class AppTest {
      */
     @Test
     public void testGetCustomerContents() {
+      db.addUser(this.customer);
 		  Customer customer = (Customer) db.getUser(this.customer.getEmail());
 		  assertTrue(customer.compare(this.customer));
+      db.wipe();
     } // testGetCustomerContents
 
     /**
@@ -123,8 +137,10 @@ public class AppTest {
      */
     @Test
     public void testGetAdminContents() {
+      db.addUser(this.admin);
 		  Administrator admin = (Administrator) db.getUser(this.admin.getEmail());
 		  assertTrue(admin.compare(this.admin));
+      db.wipe();
     } // testGetCustomerContents
 
     /**
@@ -132,15 +148,11 @@ public class AppTest {
      */
     @Test
     public void testUpdateCustomer() {
-      Customer fred = new Customer("fred",
-    "johndaboss@epic.com",
-    "password",
-    "boss",
-    "4530 Sequoia Dr, Oakwood GA 30566",
-    "ACTIVE"
-      );
-		  assertTrue(db.updateUser(fred));
-      //assertTrue(db.getUser(customer.getEmail()).compare(fred));
+      db.addUser(this.customer);
+      Customer epic_john = (Customer) db.getUser(this.customer.getEmail());
+      epic_john.setName("epic_john");
+      assertTrue(db.updateUser(epic_john));
+      db.wipe();
 		} // testUpdateCustomer
 
     /**
@@ -148,12 +160,11 @@ public class AppTest {
      */
     @Test
     public void testUpdateAdmin() {
-      Administrator epicAdmin = new Administrator("epic_admin",
-    "admin@ces.com",
-    "admin_password"
-      );
-
-		  assertTrue(db.updateUser(epicAdmin));
+      db.addUser(this.admin);
+      Administrator epic_admin = (Administrator) db.getUser(this.admin.getEmail());
+      epic_admin.setName("epic_admin");
+      assertTrue(db.updateUser(epic_admin));
+      db.wipe();
     } // testUpdateAdmin
 
     /**
@@ -161,7 +172,13 @@ public class AppTest {
      */
     @Test
     public void testCheckUpdateCustomer() {
-      assertTrue(db.getUser(customer.getEmail()).getName().equals("fred"));
+      db.addUser(this.customer);
+      Customer epic_john = (Customer) db.getUser(this.customer.getEmail());
+      epic_john.setName("epic_john");
+      db.updateUser(epic_john);
+      User temp = db.getUser(this.customer.getEmail());
+      assertTrue(temp.compare(epic_john));
+      db.wipe();
 		} // testCheckUpdateCustomer
 
     /**
@@ -169,7 +186,24 @@ public class AppTest {
      */
     @Test
     public void testCheckUpdateAdmin() {
-      assertTrue(db.getUser(admin.getEmail()).getName().equals("epic_admin"));
+      db.addUser(this.admin);
+      Administrator epic_admin = (Administrator) db.getUser(this.admin.getEmail());
+      epic_admin.setName("epic_admin");
+      db.updateUser(epic_admin);
+      User temp = db.getUser(this.admin.getEmail());
+      assertTrue(temp.compare(epic_admin));
+      db.wipe();
 		} // testCheckUpdateAdmin
+
+    /**
+     * Adds a user's favorite movie
+     */
+    @Test
+    public void TestAddFavoriteMovie() {
+      db.addUser(this.customer);
+      db.addMovie(this.movie);
+      assertTrue(db.addFavoriteMovie(this.customer, this.movie));
+      db.wipe();
+    } // testAddFavoriteMovie
 
 } // AppTest

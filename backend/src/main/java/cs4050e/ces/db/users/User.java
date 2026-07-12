@@ -3,7 +3,7 @@ package cs4050e.ces.db.users;
 /** Represents a user of the system. */
 public abstract class User {
     /** The user ID of a given user. */
-    protected int id;
+    protected int id = -1;
 
     /** The user's first name. */
     protected String name;
@@ -13,6 +13,9 @@ public abstract class User {
     
     /** The user's account password. */
     protected String password;
+
+    /** Whether a user is an admin or not. */
+    protected boolean isAdmin = false;
 
     /**
      * Initializes a new {@code User} object.
@@ -25,14 +28,6 @@ public abstract class User {
 	    this.email = email;
 	    this.password = password;
     } // User
-
-    /**
-     * Returns whether a user is an admin or not.
-     * @return {@code false} by default.
-     */
-    public boolean isAdmin() {
-        return false;
-    } // isAdmin
 
     /**
      * Returns user ID.
@@ -58,6 +53,10 @@ public abstract class User {
         return name;
     } // getName
 
+    public void setName(String name) {
+        this.name = name;
+    } // setName
+
     /**
      * Returns the user's email address.
      * @return The email address.
@@ -73,6 +72,10 @@ public abstract class User {
     public String getPassword() {
         return password;
     } // getPassword
+
+    public boolean isAdmin() {
+        return this.isAdmin;
+    }
 
     /**
      * Compares two {@code User} objects.

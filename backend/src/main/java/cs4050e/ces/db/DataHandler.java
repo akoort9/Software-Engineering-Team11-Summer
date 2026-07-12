@@ -112,6 +112,15 @@ public class DataHandler {
 	    	stmt.setString(8, movie.getShowtimes());
 	    
 		    stmt.executeUpdate();
+
+			// grabbing ID
+			Statement get_id_stmt = conn.createStatement();
+			ResultSet rs = get_id_stmt.executeQuery("SELECT last_insert_rowid()");
+			while (rs.next()) {
+				movie.setId(rs.getInt("last_insert_rowid()"));
+			} // while
+
+			rs.close();
 		    return true;
 		} catch (SQLException sqle) {
 	    	System.err.println("addMovie: " + sqle);
@@ -214,7 +223,16 @@ public class DataHandler {
 			} // if-else
 	    
 		    stmt.executeUpdate();
-		    return true;
+
+			// grabbing ID
+			Statement get_id_stmt = conn.createStatement();
+			ResultSet rs = get_id_stmt.executeQuery("SELECT last_insert_rowid()");
+			while (rs.next()) {
+				user.setId(rs.getInt("last_insert_rowid()"));
+			} // while
+			
+			rs.close();
+			return true;
 		} catch (SQLException sqle) {
 	    	System.err.println("addUser: " + sqle);
 		    return false;
@@ -229,10 +247,10 @@ public class DataHandler {
 	 */
 	public User getUser(String emailAddress) {
 		String sql = "SELECT * FROM users WHERE email_address = '" + emailAddress + "'";
+		User user = null;
 
 		try (Statement stmt = conn.createStatement();
-			 ResultSet rs = stmt.executeQuery(sql)) {
-			User user = null;			
+			 ResultSet rs = stmt.executeQuery(sql)) {			
 			while (rs.next()) {
 				if (rs.getString("role").equals("admin")) {
 					// user is an admin
@@ -252,7 +270,6 @@ public class DataHandler {
 						rs.getString("state")
 					);
 				} // if-else
-
 				user.setId(rs.getInt("id"));
 			} // while
 
@@ -289,7 +306,27 @@ public class DataHandler {
 	} // updateUser
 
 	public boolean addFavoriteMovie(User user, Movie movie) {
-		throw new UnsupportedOperationException();
+		String sql = "INSERT INTO favorite_movies (" +
+		"user_id, favorite_movie) VALUES (?, ?)";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			// check for valid IDs, if not grab objects from DB
+			if (user.getId() == -1 || movie.getId() == -1) {
+				User dbUser = getUser(user.getEmail());
+				Movie dbMovie = getMovie(movie.getTitle());
+				stmt.setInt(1, dbUser.getId());
+				stmt.setInt(2, dbMovie.getId());
+			} else {
+				stmt.setInt(1, user.getId());
+				stmt.setInt(2, movie.getId());
+			} // if-else
+
+			stmt.executeUpdate();
+			return true;			
+		} catch (SQLException sqle) {
+			System.err.println("addFavoriteMovie: " + sqle);
+			return false;
+		} // try-catch
 	} // addFavoriteMovie
 
 	public boolean removeFavoriteMovie(User user, Movie movie) {

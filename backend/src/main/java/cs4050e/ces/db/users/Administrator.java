@@ -11,14 +11,6 @@ public class Administrator extends User {
      */
     public Administrator(String name, String email, String password) {
 	    super(name, email, password);
+        this.isAdmin = true;
     } // Administrator
-
-    /**
-     * Returns whether a user is an admin or not.
-     * @return {@code true} by default.
-     */
-    @Override
-    public boolean isAdmin() {
-        return true;
-    } // isAdmin
 } // Administrator
