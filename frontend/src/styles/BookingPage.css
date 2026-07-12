@@ -7,14 +7,15 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  background: #f3f6fb;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .booking-page h1 {
   text-align: center;
   margin: 12px auto 18px auto;
   max-width: var(--booking-header-width);
-  color: #111827;
+  color: var(--text-h);
 }
 
 .booking-container {
@@ -41,35 +42,35 @@
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-h);
 }
 
 .selection-group select {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   font-size: 16px;
-  background-color: white;
-  color: #000;
+  background-color: var(--surface-2);
+  color: var(--text-h);
   cursor: pointer;
   text-align: center;
   text-align-last: center;
 }
 
 .selection-group select:hover {
-  border-color: #999;
+  border-color: var(--accent-border);
 }
 
 .selection-group select:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
 }
 
 .selection-summary {
-  background: #e3f2fd;
-  border-left: 4px solid #2196f3;
+  background: var(--accent-bg);
+  border-left: 4px solid var(--accent);
   padding: 15px;
   margin-bottom: 25px;
   border-radius: 4px;
@@ -78,32 +79,34 @@
 .summary-item {
   padding: 8px 0;
   font-size: 16px;
-  color: #1565c0;
+  color: var(--text);
 }
 
 .summary-item strong {
-  color: #0d47a1;
+  color: var(--text-h);
   margin-right: 10px;
 }
 
 .seat-selection {
   margin-top: 12px;
   padding: 18px;
-  background: white;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow);
 }
 
 .seat-selection h2 {
   text-align: center;
-  color: #333;
+  color: var(--text-h);
   margin-bottom: 20px;
 }
 
 .screen {
   text-align: center;
-  background: linear-gradient(180deg, #4b5563, #6b7280);
-  color: white;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  color: var(--text-h);
+  border: 1px solid var(--border);
   padding: 12px 18px;
   margin-bottom: 18px;
   border-radius: 6px;
@@ -130,15 +133,15 @@
   gap: 16px;
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #f9fafb;
+  background: var(--surface);
 }
 
 .ticket-types h3 {
   margin: 0;
   font-size: 18px;
-  color: #111827;
+  color: var(--text-h);
 }
 
 .ticket-type-row {
@@ -147,7 +150,7 @@
   align-items: center;
   gap: 16px;
   padding: 10px 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
 }
 
 .ticket-type-row:first-of-type {
@@ -156,15 +159,15 @@
 
 .ticket-type-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--text);
 }
 
 .ticket-counter {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  background: white;
-  border: 1px solid #d1d5db;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: 9999px;
   padding: 6px 12px;
 }
@@ -174,8 +177,8 @@
   height: 34px;
   border: none;
   border-radius: 9999px;
-  background: #2563eb;
-  color: white;
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 18px;
   display: inline-flex;
   align-items: center;
@@ -184,8 +187,12 @@
   transition: background-color 0.2s;
 }
 
+.counter-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
 .counter-button:disabled {
-  background: #9ca3af;
+  background: var(--border);
   cursor: not-allowed;
 }
 
@@ -193,7 +200,7 @@
   min-width: 28px;
   text-align: center;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-h);
 }
 
 .demo-seats-grid {
@@ -222,34 +229,34 @@
   font: inherit;
   width: 40px;
   height: 40px;
-  border: 2px solid #ddd;
-  background-color: #e8f4f8;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-2);
+  border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  color: #333;
-  transition: all 0.3s ease;
+  color: var(--text);
+  transition: all 0.2s ease;
 }
 
 .seat:hover:not(.booked):not(.selected) {
-  background-color: #b3e5fc;
-  border-color: #0288d1;
-  transform: scale(1.1);
+  background-color: var(--accent-bg);
+  border-color: var(--accent);
+  transform: scale(1.08);
 }
 
 .seat.selected {
-  background-color: #4caf50;
-  border-color: #2e7d32;
-  color: white;
-  transform: scale(1.1);
+  background-color: var(--accent);
+  border-color: var(--accent-hover);
+  color: var(--on-accent);
+  transform: scale(1.08);
 }
 
 .seat.booked {
-  background-color: #ccc;
-  border-color: #999;
+  background-color: var(--surface);
+  border-color: var(--border);
   cursor: not-allowed;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .seat:disabled {
@@ -270,6 +277,7 @@
   align-items: center;
   gap: 10px;
   font-size: 14px;
+  color: var(--text);
 }
 
 .legend-item .seat {
@@ -279,8 +287,8 @@
 }
 
 .booking-summary {
-  background: white;
-  border: 2px solid #ddd;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px;
   margin-top: 20px;
@@ -289,19 +297,19 @@
 .booking-summary div {
   margin-bottom: 12px;
   font-size: 16px;
-  color: #333;
+  color: var(--text);
 }
 
 .booking-summary strong {
-  color: #333;
+  color: var(--text-h);
 }
 
 .total-price {
   font-size: 20px;
-  color: #4caf50;
+  color: var(--accent);
   margin: 15px 0;
   padding-top: 15px;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--border);
 }
 
 .ticket-type-details {
@@ -312,7 +320,7 @@
 
 .ticket-price {
   font-size: 0.9rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .purchase-summary {
@@ -327,7 +335,7 @@
 .total-cost {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-h);
   margin: 0;
 }
 
@@ -336,10 +344,10 @@
   max-width: calc(var(--booking-header-width) / 2);
   margin: 0;
   padding: 12px;
-  background-color: #4caf50;
-  color: white;
+  background-color: var(--accent);
+  color: var(--on-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -347,30 +355,31 @@
 }
 
 .book-button:hover:not(:disabled) {
-  background-color: #45a049;
+  background-color: var(--accent-hover);
 }
 
 .book-button:disabled {
-  background-color: #ccc;
+  background-color: var(--border);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
 .error-message {
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: rgba(242, 104, 107, 0.12);
+  color: var(--error);
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 20px;
-  border-left: 4px solid #c62828;
+  border-left: 4px solid var(--error);
 }
 
 .success-message {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background-color: rgba(53, 192, 122, 0.13);
+  color: var(--success);
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 20px;
-  border-left: 4px solid #2e7d32;
+  border-left: 4px solid var(--success);
   font-weight: 600;
 }
 
