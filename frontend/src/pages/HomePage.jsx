@@ -84,7 +84,8 @@ export default function HomePage() {
 
       <p>
         <Link to="/booking">Book Seats</Link> | <Link to="/admin">Admin</Link> |{' '}
-        <Link to="/login">Log In</Link> | <Link to="/register">Register</Link>
+        <Link to="/login">Log In</Link> | <Link to="/register">Register</Link> |{' '}
+        <Link to="/edit-profile">Edit Profile</Link>
       </p>
     </main>
   )
