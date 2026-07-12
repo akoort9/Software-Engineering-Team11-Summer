@@ -3,6 +3,9 @@ package cs4050e.ces.db.theatre;
 /** Represents a movie and its related information. */
 public class Movie {
 
+	/** Database ID. */
+	int id = -1;
+
     /** Movie title. */
     String title = "title";
     
@@ -77,6 +80,14 @@ public class Movie {
 			this.showtimes = showtimes;
 		} // if-else
     } // Movie
+
+	public int getId() {
+		return id;
+	} // getId
+
+	public void setId(int id) {
+		this.id = id;
+	} // setId
 
 	public String getTitle() {
 		return title;

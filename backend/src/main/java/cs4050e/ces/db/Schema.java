@@ -16,28 +16,37 @@ class Schema {
 					"showtimes TEXT)";
 
     /** SQL statement to create the 'users' table. */
-    public static final String USERS_TABLE = "";
-
-    /** SQL statement to create the 'customers' table. */
-    public static final String CUSTOMERS_TABLE = "";
-    
-    /** SQL statement to create the 'admins' table. */
-    public static final String ADMINS_TABLE = "";
-
-    /** SQL statement to create the 'passwords' table. */
-    public static final String PASSWORDS_TABLE = "";
+    public static final String USERS_TABLE = "CREATE TABLE IF NOT EXISTS users (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "first_name TEXT, " +
+                    "last_name TEXT, " +
+                    "email_address TEXT NOT NULL, " +
+                    "password_hash TEXT, " +
+                    "role TEXT, " +
+                    "mailing_address TEXT, " +
+                    "state TEXT)";
 
     /** SQL statement to create the 'favorite_movies' table. */
-    public static final String FAVORITE_MOVIES_TABLE = "";
-
-    /** SQL statement to create the 'user_cards' table. */
-    public static final String USER_CARDS_TABLE = "";
+    public static final String FAVORITE_MOVIES_TABLE = "CREATE TABLE IF NOT EXISTS favorite_movies (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "favorite_movie INTEGER NOT NULL)";
 
     /** SQL statement to create the 'payment_cards' table. */
-    public static final String PAYMENT_CARDS_TABLE = "";
+    public static final String PAYMENT_METHODS_TABLE = "CREATE TABLE IF NOT EXISTS payment_methods (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "card_number TEXT, " +
+                    "billing_address TEXT, " +
+                    "expiration_date Date)";
 
     /** SQL statement to add a movie. */
     public static final String ADD_MOVIE = "INSERT INTO movies (" +
                     "title, genre, \"desc\", poster, trailer, rating, status, showtimes) " +
 	    	        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    
+    public static final String ADD_USER = "INSERT INTO users (" +
+                    "first_name, last_name, email_address, password_hash, role, " +
+                    "mailing_address, state) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
 } // Schema

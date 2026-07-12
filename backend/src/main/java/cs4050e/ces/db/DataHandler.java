@@ -10,6 +10,10 @@ import java.util.List;
 
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.theatre.Movie;
+import cs4050e.ces.db.users.User;
+import cs4050e.ces.db.users.Administrator;
+import cs4050e.ces.db.users.Customer;
+import cs4050e.ces.db.payment.Card;
 
 /** Singleton class to provide access to the database. */
 public class DataHandler {
@@ -32,6 +36,11 @@ public class DataHandler {
 		} // try-catch				
 	} // DataHandler
 
+	/**
+	 * Returns a reference to the {@code DataHandler}, used
+	 * to access the database.
+	 * @return The {@code DataHandler} object.
+	 */
 	public static DataHandler getInstance() {
 		DataHandler result = instance;	// read volatile only once
 		if (result == null) {	// first check (no locking)
@@ -62,8 +71,12 @@ public class DataHandler {
 			.newInstance();
 	    	Connection conn = driver.connect("jdbc:sqlite:" + filename, new java.util.Properties());
 
+			// create tables
 	    	try (Statement stmt = conn.createStatement()) {
 				stmt.execute(Schema.MOVIES_TABLE);
+				stmt.execute(Schema.USERS_TABLE);
+				stmt.execute(Schema.FAVORITE_MOVIES_TABLE);
+				stmt.execute(Schema.PAYMENT_METHODS_TABLE);
 			} // try
 
 	    	return conn;
@@ -128,6 +141,7 @@ public class DataHandler {
 				    rs.getString("showtimes")
 				);
 
+				movie.setId(rs.getInt("id"));
 				movies.add(movie);
 	    	} // while
 
@@ -140,6 +154,161 @@ public class DataHandler {
     } // getMovies
 
 	/**
+	 * Returns a movie from the database with the given title.
+	 * @param title
+	 * @return A {@code Movie} object or {@code null} if it does not exist.
+	 */
+	public Movie getMovie(String title) {
+		String sql = "SELECT * FROM movies WHERE title = '" + title + "'";
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {			
+			Movie movie = null;
+			while (rs.next()) {
+				movie = new Movie(
+		    		rs.getString("title"),
+		    		rs.getString("genre"),
+		    		rs.getString("desc"),
+				    rs.getString("poster"),
+				    rs.getString("trailer"),
+				    rs.getInt("rating"),
+		    		rs.getBoolean("status"),
+				    rs.getString("showtimes")
+				);
+				movie.setId(rs.getInt("id"));
+			} // while
+
+			rs.close();
+			return movie;
+		} catch (SQLException sqle) {
+			System.err.println("getMovie: " + sqle);
+		    return null;
+		} // try-catch
+	} // getMovie
+
+	/**
+	 * Adds a {@code User} to the database.
+	 * @param user The user to add.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean addUser(User user) {
+		String sql = Schema.ADD_USER;
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+	    	stmt.setString(1, user.getName());
+			stmt.setString(3, user.getEmail());
+		    stmt.setString(4, user.getPassword());
+
+			if (user.isAdmin()) {
+				// user is an admin
+				stmt.setString(2, "");
+				stmt.setString(5, "admin");
+				stmt.setString(6, "");
+				stmt.setString(7, "ACTIVE");
+			} else {
+				// user is a customer
+				Customer customer = (Customer) user;
+				stmt.setString(2, customer.getLastName());
+				stmt.setString(5, "customer");
+				stmt.setString(6, customer.getMailingAddress());
+				stmt.setString(7, customer.getState().toString());
+			} // if-else
+	    
+		    stmt.executeUpdate();
+		    return true;
+		} catch (SQLException sqle) {
+	    	System.err.println("addUser: " + sqle);
+		    return false;
+		} // try-catch
+	} // addUser
+
+	/**
+	 * Returns a {@code User} from the database with
+	 * the specified email address.
+	 * @param emailAddress The email address of the user.
+	 * @return A {@code User} object or {@code null} if it does not exist.
+	 */
+	public User getUser(String emailAddress) {
+		String sql = "SELECT * FROM users WHERE email_address = '" + emailAddress + "'";
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+			User user = null;			
+			while (rs.next()) {
+				if (rs.getString("role").equals("admin")) {
+					// user is an admin
+					user = new Administrator(
+						rs.getString("first_name"),
+						rs.getString("email_address"),
+						rs.getString("password_hash")
+					);
+				} else {
+					// user is a customer
+					user = new Customer(
+						rs.getString("first_name"),
+						rs.getString("email_address"),
+						rs.getString("password_hash"),
+						rs.getString("last_name"),
+						rs.getString("mailing_address"),
+						rs.getString("state")
+					);
+				} // if-else
+
+				user.setId(rs.getInt("id"));
+			} // while
+
+			rs.close();
+			return user;
+		} catch (SQLException sqle) {
+			System.err.println("getUser: " + sqle);
+		    return null;
+		} // try-catch
+	} // getUser
+
+	public boolean updateUser(User user) {
+		String sql = null;
+
+		// update user info according to role
+		if (user.isAdmin()) {
+			sql = "UPDATE users SET first_name = '" + user.getName() +
+			"' WHERE id = " + user.getId();
+		} else {
+			Customer customer = (Customer) user;
+			sql = "UPDATE users SET first_name = '" + user.getName() +
+			"', last_name = '" + customer.getLastName() + 
+			"', mailing_address = '" + customer.getMailingAddress() + "' " +
+			"WHERE id = " + user.getId();
+		} // if
+
+		try (Statement stmt = conn.createStatement()) {
+			stmt.executeUpdate(sql);
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("updateUser: " + sqle);
+			return false;
+		} // try-catch
+	} // updateUser
+
+	public boolean addFavoriteMovie(User user, Movie movie) {
+		throw new UnsupportedOperationException();
+	} // addFavoriteMovie
+
+	public boolean removeFavoriteMovie(User user, Movie movie) {
+		throw new UnsupportedOperationException();
+	} // removeFavoriteMovie
+
+	public List<Movie> getFavoriteMovies(User user) {
+		throw new UnsupportedOperationException();
+	} // getFavoriteMovie
+
+	public boolean addCard(User user, Card card) {
+		throw new UnsupportedOperationException();
+	} // addCard
+
+	public List<Card> getCards(User user) {
+		throw new UnsupportedOperationException();
+	} // getCard
+
+	/**
 	 * Wipes the database and reseeds it.
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
@@ -149,9 +318,11 @@ public class DataHandler {
 		} // if
 
 		// clear all records from database, don't drop tables
-		String sql = "DELETE FROM movies";
 		try (Statement stmt = conn.createStatement()) {
-			stmt.execute(sql);
+			stmt.execute("DELETE FROM movies");
+			stmt.execute("DELETE FROM users");
+			stmt.execute("DELETE FROM favorite_movies");
+			stmt.execute("DELETE FROM payment_methods");
 		} catch (SQLException sqle) {
 			return false;
 		} // try-catch
@@ -181,38 +352,6 @@ public class DataHandler {
 		} // for
 		return true;
 	} // seed
-
-	/**
-	 * Returns a movie from the database with the given title.
-	 * @param title
-	 * @return A {@code Movie} object or {@code null} if it does not exist.
-	 */
-	public Movie getMovie(String title) {
-		String sql = "SELECT * FROM movies WHERE title = '" + title + "'";
-		try (Statement stmt = conn.createStatement();
-			 ResultSet rs = stmt.executeQuery(sql)) {			
-			Movie movie = null;
-			while (rs.next()) {
-				movie = new Movie(
-		    		rs.getString("title"),
-		    		rs.getString("genre"),
-		    		rs.getString("desc"),
-				    rs.getString("poster"),
-				    rs.getString("trailer"),
-				    rs.getInt("rating"),
-		    		rs.getBoolean("status"),
-				    rs.getString("showtimes")
-				);
-			} // while
-
-			rs.close();
-			return movie;
-		} catch (SQLException sqle) {
-			System.err.println("getMovie: " + sqle);
-		    return null;
-		} // try-catch
-
-	} // getMovie
 
 	public double getTicketPrice(Ticket.TicketType type) {
 		throw new UnsupportedOperationException("method not yet implemented");
