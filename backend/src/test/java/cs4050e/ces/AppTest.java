@@ -25,8 +25,7 @@ public class AppTest {
 		"gleep",
 		"gleep",
 		5,
-		true,
-		"2:00 PM,5:00 PM,8:00 PM;");
+		true);
 
   Customer customer = new Customer("john",
     "johndaboss@epic.com",
