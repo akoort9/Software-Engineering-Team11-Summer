@@ -99,17 +99,16 @@ public class DataHandler {
 		    stmt.setString(3, movie.getDesc());
 			stmt.setString(4, movie.getPoster());
 		    stmt.setString(5, movie.getTrailer());
-		    stmt.setInt(6, movie.getRating());
 
 	    	if (movie.isStatus()) {
 				// Currently Running
-				stmt.setInt(7, 1);
+				stmt.setInt(6, 1);
 		    } else {
 				// Coming Soon
-				stmt.setInt(7, 0);
+				stmt.setInt(6, 0);
 		    } // if-else
 
-	    	stmt.setString(8, movie.getShowtimes());
+			stmt.setInt(7, movie.getRating());
 	    
 		    stmt.executeUpdate();
 
@@ -146,8 +145,7 @@ public class DataHandler {
 				    rs.getString("poster"),
 				    rs.getString("trailer"),
 				    rs.getInt("rating"),
-		    		rs.getBoolean("status"),
-				    rs.getString("showtimes")
+		    		rs.getBoolean("status")
 				);
 
 				movie.setId(rs.getInt("id"));
@@ -180,8 +178,7 @@ public class DataHandler {
 				    rs.getString("poster"),
 				    rs.getString("trailer"),
 				    rs.getInt("rating"),
-		    		rs.getBoolean("status"),
-				    rs.getString("showtimes")
+		    		rs.getBoolean("status")
 				);
 				movie.setId(rs.getInt("id"));
 			} // while
@@ -306,8 +303,7 @@ public class DataHandler {
 	} // updateUser
 
 	public boolean addFavoriteMovie(User user, Movie movie) {
-		String sql = "INSERT INTO favorite_movies (" +
-		"user_id, favorite_movie) VALUES (?, ?)";
+		String sql = Schema.ADD_FAVORITE_MOVIE;
 
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			// check for valid IDs, if not grab objects from DB

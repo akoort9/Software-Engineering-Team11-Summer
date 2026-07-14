@@ -98,4 +98,8 @@ class Schema {
     public static final String ADD_TICKET = "INSERT INTO tickets (" +
                     "user_id, showtime_id, seat_id, price, ticket_class, purchase_date) " +
                     "VALUES (?, ?, ?, ?, ?, ?)";
+    
+    /** SQL statement to add a favorite movie. */
+    public static final String ADD_FAVORITE_MOVIE = "INSERT INTO favorite_movies (" +
+		"user_id, movie_id) VALUES (?, ?)";
 } // Schema
