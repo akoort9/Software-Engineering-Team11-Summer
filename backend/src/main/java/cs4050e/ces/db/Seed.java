@@ -1,6 +1,7 @@
 package cs4050e.ces.db;
 
 import cs4050e.ces.db.theatre.Movie;
+import cs4050e.ces.db.users.*;;
 
 /** Holds seed variables. */
 class Seed {
@@ -99,5 +100,17 @@ class Seed {
 		  8,
 		  true)
     };
+
+	public static final User[] users = {
+		new Administrator("admin",
+    					"admin@ces.com",
+    					"admin_password"),
+		new Customer("john",
+    				"johndaboss@epic.com",
+   					"password",
+    				"boss",
+    				"4530 Sequoia Dr, Oakwood GA 30566",
+    				"ACTIVE")
+	};
 
 } // Seeder

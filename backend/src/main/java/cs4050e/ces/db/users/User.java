@@ -73,9 +73,13 @@ public abstract class User {
         return password;
     } // getPassword
 
+    /**
+     * Returns {@code true} if the user is an {@code Administrator}.
+     * @return {@code true} if admin, {@code false} otherwise.
+     */
     public boolean isAdmin() {
         return this.isAdmin;
-    }
+    } // isAdmin
 
     /**
      * Compares two {@code User} objects.
@@ -89,12 +93,4 @@ public abstract class User {
 
         return sameName && sameEmail && samePassword;
     } // compare
-
-    public boolean login() {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // login
-
-    public void logout() {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // logout
 } // User

@@ -342,6 +342,29 @@ public class DataHandler {
 	} // getCard
 
 	/**
+     * Checks if a {@code User} with this email address is in the database.
+	 * @param email The user's email address.
+     * @return {@code true} if it is, {@code false} otherwise.
+     */
+    public boolean userExists(String email) {
+        String sql = "SELECT * FROM users WHERE email_address = '" + email + "'";
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+				while (rs.next()) {
+					System.out.println("in the while...");
+					if (rs.getString("email_address").equals(email)) {
+						return true;
+					} // if
+				} // while
+				return false;
+		} catch (SQLException sqle) {
+			System.err.println("userExists: " + sqle);
+			return false;
+		} // try-catch
+    } // exists
+
+	/**
 	 * Wipes the database and reseeds it.
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
@@ -377,12 +400,16 @@ public class DataHandler {
 			return false;
 		} // if
 
-		Movie[] movies = Seed.movies;
-
 		// seeds movies
-		for (int i = 0; i < movies.length; i++) {
-			this.addMovie(movies[i]);
+		for (int i = 0; i < Seed.movies.length; i++) {
+			this.addMovie(Seed.movies[i]);
 		} // for
+
+		// seeds users
+		for (int i = 0; i < Seed.users.length; i++) {
+			this.addUser(Seed.users[i]);
+		} // for
+
 		return true;
 	} // seed
 

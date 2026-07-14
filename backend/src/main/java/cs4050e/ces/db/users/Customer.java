@@ -21,11 +21,11 @@ public class Customer extends User {
     };
 
     /** This user's information. */
-    private String lastName;
-    private String mailingAddress;
+    private String lastName = "";
+    private String mailingAddress = "";
 
     /** State of this customer's account. */
-    private CustomerState state;
+    private CustomerState state = CustomerState.INACTIVE;
 
     /**
      * Initializes a new {@code Customer} object.

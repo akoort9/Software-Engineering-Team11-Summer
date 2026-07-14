@@ -1,16 +1,14 @@
 package cs4050e.ces;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
 import cs4050e.ces.db.users.*;
-import cs4050e.ces.db.users.Customer.CustomerState;;
 
 /**
  * Unit test for simple App.
@@ -204,5 +202,17 @@ public class AppTest {
       assertTrue(db.addFavoriteMovie(this.customer, this.movie));
       db.wipe();
     } // testAddFavoriteMovie
+
+    /**
+     * Checks if a user exists in the database.
+     */
+    @Test
+    public void TestUserExists() {
+      db.addUser(this.admin);
+      assertTrue(db.userExists(this.admin.getEmail()));
+      User test = new Administrator("test", "test", "test");
+      assertFalse(db.userExists(test.getEmail()));
+      db.wipe();
+    } // TestUserExists
 
 } // AppTest
