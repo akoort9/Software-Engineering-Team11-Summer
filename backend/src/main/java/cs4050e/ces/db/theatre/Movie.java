@@ -2,8 +2,9 @@ package cs4050e.ces.db.theatre;
 
 /** Represents a movie and its related information. */
 public class Movie {
-    /** Database id. */
-    public int id = 0;
+
+	/** Database ID. */
+	int id = -1;
 
     /** Movie title. */
     String title = "title";
@@ -30,12 +31,6 @@ public class Movie {
     boolean status = false;
 
     /**
-     * Comma separated string, each substring is a showtime for
-     * the movie. A semicolon denotes the end of the string.
-     */
-    String showtimes = "2:00 PM,5:00 PM,8:00 PM;";
-    
-    /**
      * Initializes a {@code Movie} object.
      * @param title The movie's title.
      * @param desc The movie's description.
@@ -43,25 +38,22 @@ public class Movie {
      * @param trailer The movie's promotional trailer.
      * @param rating The movie's rating.
      * @param status Whether the movie is 'Currently Showing' or not ('Coming Soon').
-     * @param showtimes A comma separated list of the movie's showtimes.
      * @throws IllegalArgumentException if {@code rating} is not between 0 and 10.
      * @throws NullPointerException if any {@code String} parameter is {@code null}.
      */
     public Movie(String title,
 				 String genre,
-		 		 String desc,
-		 		 String poster,
-		 		 String trailer,
+			 	 String desc,
+			 	 String poster,
+			 	 String trailer,
 				 int rating,
-		 		 boolean status,
-		 		 String showtimes) {
+			 	 boolean status) {
 		// null check
 		boolean nullCheck = (title == null ||
 			     			 genre == null ||
 			     			 desc == null ||
 			     			 poster == null ||
-			     			 trailer == null ||
-			     			 showtimes == null);
+			     			 trailer == null);
 		
 		// error handling
 		if (nullCheck) {
@@ -76,13 +68,16 @@ public class Movie {
 			this.trailer = trailer;
 			this.status = status;
 			this.rating = rating;
-			this.showtimes = showtimes;
 		} // if-else
     } // Movie
 
-    public int getId() {
+	public int getId() {
 		return id;
 	} // getId
+
+	public void setId(int id) {
+		this.id = id;
+	} // setId
 
 	public String getTitle() {
 		return title;
@@ -112,10 +107,6 @@ public class Movie {
 		return status;
 	} // getStatus
 
-	public String getShowtimes() {
-		return showtimes;
-	} // getShowtimes
-
 	/**
      * Compares the calling {@code Movie} object to a given
      * {@code Movie}.
@@ -134,7 +125,6 @@ public class Movie {
 		boolean sameTrailer = this.trailer.equals(movie.trailer);
 		boolean sameRating = this.rating == movie.rating;
 		boolean sameStatus = this.status == movie.status;
-		boolean sameShowtimes = this.showtimes.equals(movie.showtimes);
 
 		return (sameTitle &&
 			sameGenre &&
@@ -142,7 +132,6 @@ public class Movie {
 			samePoster &&
 			sameTrailer &&
 			sameRating &&
-			sameStatus &&
-			sameShowtimes);
+			sameStatus);
 	} // compare
 } // Movie

@@ -61,7 +61,7 @@ public class Booking {
     public double calculateTotal(Promotion promo) {
         // add all tickets
         for (int i = 0; i < this.tickets.size(); i++) {
-            totalPrice += this.tickets.get(i).price;
+            totalPrice += this.tickets.get(i).getPrice();
         } // for
 
         // add discount
