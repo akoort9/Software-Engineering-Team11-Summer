@@ -37,6 +37,7 @@ public class App {
 
 		server.createContext("/api/movies", App::handleMovies);
 		server.createContext("/api/user", App::handleUsers);
+		server.createContext("/api/login", App::handleLogin);
 		server.setExecutor(null);
 		server.start();
 		System.out.println("Listening on http://localhost:" + PORT);
@@ -232,6 +233,81 @@ public class App {
 
 		sendJson(exchange, 201, user);
     } // handlePostUser
+
+    /**
+     * Authenticates a user from an email/password pair in the request body.
+     * Customers must have a verified (ACTIVE) account to log in.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleLogin(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} // if
+
+		if (!method.equals("POST")) {
+			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		Map<?, ?> json;
+
+		try {
+			json = GSON.fromJson(body, Map.class);
+		} catch (Exception e) {
+			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} // try-catch
+
+		Object emailObj = (json == null ? null : json.get("email"));
+		Object passwordObj = (json == null ? null : json.get("password"));
+		String email = emailObj == null ? "" : emailObj.toString().trim();
+		String password = passwordObj == null ? "" : passwordObj.toString();
+
+		if (email.isEmpty() || password.isEmpty()) {
+			sendJson(exchange, 400, Map.of("error", "Email and password are required."));
+			return;
+		} // if
+
+		// use the same generic message for unknown email and wrong password
+		// so we don't reveal which accounts exist
+		if (!db.userExists(email)) {
+			sendJson(exchange, 401, Map.of("error", "Incorrect email or password."));
+			return;
+		} // if
+
+		User user = db.getUser(email);
+
+		if (user == null || !user.getPassword().equals(password)) {
+			sendJson(exchange, 401, Map.of("error", "Incorrect email or password."));
+			return;
+		} // if
+
+		// customers must verify their account (via email) before logging in
+		if (!user.isAdmin()) {
+			Customer customer = (Customer) user;
+			if (customer.getState() == Customer.CustomerState.INACTIVE) {
+				sendJson(exchange, 403, Map.of("error",
+					"Account is not verified. Please check your email to verify your account."));
+				return;
+			} // if
+			if (customer.getState() == Customer.CustomerState.SUSPENDED) {
+				sendJson(exchange, 403, Map.of("error", "This account has been suspended."));
+				return;
+			} // if
+		} // if
+
+		sendJson(exchange, 200, user);
+    } // handleLogin
 
     /**
      * Writes a JSON response with the given status code.
