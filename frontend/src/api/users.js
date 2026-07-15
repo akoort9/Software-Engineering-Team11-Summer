@@ -39,3 +39,24 @@ export async function loginUser(credentials) {
 
   return res.json()
 }
+
+export async function verifyUser({ email, code }) {
+  const res = await fetch('/api/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to verify account'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}

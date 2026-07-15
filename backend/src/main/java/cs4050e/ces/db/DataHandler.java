@@ -81,6 +81,7 @@ public class DataHandler {
 
 			// keep older database files compatible with newer columns
 			ensureColumn(conn, "users", "subscribed_to_promotions", "INTEGER");
+			ensureColumn(conn, "users", "verification_code", "TEXT");
 
 	    	return conn;
 		} catch (ReflectiveOperationException roe) {
@@ -399,6 +400,68 @@ public class DataHandler {
 			return false;
 		} // try-catch
     } // exists
+
+	/**
+	 * Stores an email-verification code for the user with the given email.
+	 * @param email The user's email address.
+	 * @param code The verification code to store.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean setVerificationCode(String email, String code) {
+		String sql = "UPDATE users SET verification_code = ? WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, code);
+			stmt.setString(2, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("setVerificationCode: " + sqle);
+			return false;
+		} // try-catch
+	} // setVerificationCode
+
+	/**
+	 * Returns the stored verification code for a user, or {@code null}
+	 * if none is set (e.g. the account is already verified).
+	 * @param email The user's email address.
+	 * @return The verification code, or {@code null}.
+	 */
+	public String getVerificationCode(String email) {
+		String sql = "SELECT verification_code FROM users WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getString("verification_code");
+				} // if
+			} // try
+			return null;
+		} catch (SQLException sqle) {
+			System.err.println("getVerificationCode: " + sqle);
+			return null;
+		} // try-catch
+	} // getVerificationCode
+
+	/**
+	 * Marks a user's account as verified (ACTIVE) and clears their
+	 * verification code.
+	 * @param email The user's email address.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean activateUser(String email) {
+		String sql = "UPDATE users SET state = 'ACTIVE', verification_code = NULL WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("activateUser: " + sqle);
+			return false;
+		} // try-catch
+	} // activateUser
 
 	/**
 	 * Wipes the database and reseeds it.

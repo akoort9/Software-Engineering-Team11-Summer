@@ -17,6 +17,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
 
   const updateField = (e) => {
     const { name, value, type, checked } = e.target
@@ -26,7 +28,6 @@ export default function RegisterPage() {
     }))
   }
 
-  // returns an error message, or '' when the form is valid
   const validate = () => {
     if (!form.firstName.trim()) return 'First name is required.'
     if (!form.lastName.trim()) return 'Last name is required.'
@@ -56,7 +57,7 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      await registerUser({
+      const data = await registerUser({
         name: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim(),
@@ -66,6 +67,8 @@ export default function RegisterPage() {
         subscribedToPromotions: form.subscribeToPromotions,
         isAdmin: false,
       })
+      setRegisteredEmail(form.email.trim())
+      setVerificationCode(data && data.verificationCode ? data.verificationCode : '')
       setSuccess(true)
     } catch (err) {
       setError(err.message)
@@ -80,11 +83,20 @@ export default function RegisterPage() {
         <div className="auth-card">
           <h1>Check Your Email</h1>
           <p className="auth-message">
-            Your account has been created but is not yet verified. Please check
-            your email to verify your account before logging in.
+            Your account has been created but is not yet verified. Enter the
+            verification code sent to your email to activate your account.
           </p>
-          <Link to="/login" className="auth-button">
-            Go to Login
+          {verificationCode && (
+            <p className="auth-message">
+              <strong>Demo:</strong> email delivery is simulated. Your
+              verification code is <strong>{verificationCode}</strong>.
+            </p>
+          )}
+          <Link
+            to={`/verify?email=${encodeURIComponent(registeredEmail)}`}
+            className="auth-button"
+          >
+            Verify Account
           </Link>
         </div>
       </main>

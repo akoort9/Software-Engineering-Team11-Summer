@@ -6,6 +6,7 @@ import MovieDetailPage from './pages/MovieDetailPage.jsx'
 import BookingPage from './pages/BookingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import VerifyPage from './pages/VerifyPage.jsx'
 import EditProfilePage from './pages/EditProfilePage.jsx'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify" element={<VerifyPage />} />
           <Route path="/edit-profile" element={<EditProfilePage />} />
         </Routes>
       </BrowserRouter>

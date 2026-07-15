@@ -27,6 +27,9 @@ public class App {
     /** GSON object. */
     private static final Gson GSON = new GsonBuilder().create();
 
+    /** Source of randomness for verification codes. */
+    private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
+
     /**
      * Starts the HTTP server.
      * @param args unused.
@@ -38,6 +41,7 @@ public class App {
 		server.createContext("/api/movies", App::handleMovies);
 		server.createContext("/api/user", App::handleUsers);
 		server.createContext("/api/login", App::handleLogin);
+		server.createContext("/api/verify", App::handleVerify);
 		server.setExecutor(null);
 		server.start();
 		System.out.println("Listening on http://localhost:" + PORT);
@@ -231,8 +235,91 @@ public class App {
 			return;
 		} // if
 
-		sendJson(exchange, 201, user);
+		// admins are active immediately; customers must verify by email
+		if (isAdmin) {
+			sendJson(exchange, 201, user);
+			return;
+		} // if
+
+		// generate a verification code and "email" it. For this project the
+		// email is simulated: the code is printed to the server console and
+		// returned so the demo UI can display it.
+		String code = generateVerificationCode();
+		db.setVerificationCode(user.getEmail(), code);
+		System.out.println("[email] Verification code for " + user.getEmail() + ": " + code);
+
+		sendJson(exchange, 201, Map.of("user", user, "verificationCode", code));
     } // handlePostUser
+
+    /**
+     * Verifies a customer account using an email/code pair from the request
+     * body, flipping the account state to ACTIVE when the code matches.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleVerify(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} // if
+
+		if (!method.equals("POST")) {
+			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		Map<?, ?> json;
+
+		try {
+			json = GSON.fromJson(body, Map.class);
+		} catch (Exception e) {
+			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} // try-catch
+
+		Object emailObj = (json == null ? null : json.get("email"));
+		Object codeObj = (json == null ? null : json.get("code"));
+		String email = emailObj == null ? "" : emailObj.toString().trim();
+		String code = codeObj == null ? "" : codeObj.toString().trim();
+
+		if (email.isEmpty() || code.isEmpty()) {
+			sendJson(exchange, 400, Map.of("error", "Email and verification code are required."));
+			return;
+		} // if
+
+		if (!db.userExists(email)) {
+			sendJson(exchange, 404, Map.of("error", "No account found for that email."));
+			return;
+		} // if
+
+		String storedCode = db.getVerificationCode(email);
+
+		// a null/blank stored code means the account is already verified
+		if (storedCode == null || storedCode.isEmpty()) {
+			sendJson(exchange, 200, Map.of("message", "Account is already verified. You can log in."));
+			return;
+		} // if
+
+		if (!storedCode.equals(code)) {
+			sendJson(exchange, 400, Map.of("error", "Incorrect verification code."));
+			return;
+		} // if
+
+		if (!db.activateUser(email)) {
+			sendJson(exchange, 500, Map.of("error", "could not verify account"));
+			return;
+		} // if
+
+		sendJson(exchange, 200, Map.of("message", "Account verified. You can now log in."));
+    } // handleVerify
 
     /**
      * Authenticates a user from an email/password pair in the request body.
@@ -308,6 +395,14 @@ public class App {
 
 		sendJson(exchange, 200, user);
     } // handleLogin
+
+    /**
+     * Generates a random 6-digit verification code.
+     * @return The zero-padded verification code.
+     */
+    private static String generateVerificationCode() {
+		return String.format("%06d", RANDOM.nextInt(1_000_000));
+    } // generateVerificationCode
 
     /**
      * Writes a JSON response with the given status code.
