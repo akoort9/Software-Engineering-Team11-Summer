@@ -197,15 +197,32 @@ public class App {
 
 		// checking if user is an admin
 		Object isAdminObj = (json == null ? null : json.get("isAdmin"));
-		boolean isAdmin = (isAdminObj == null ? false : Boolean.getBoolean(isAdminObj.toString().trim()));
+		boolean isAdmin = (isAdminObj == null ? false : Boolean.parseBoolean(isAdminObj.toString().trim()));
 
 		// making appropriate objects
 		if (isAdmin) {
 			user = GSON.fromJson(body, Administrator.class);
 		} else {
-			user = GSON.fromJson(body, Customer.class);
+			Customer customer = GSON.fromJson(body, Customer.class);
+			// new registrations are always unverified until email confirmation
+			customer.setState("INACTIVE");
+			user = customer;
 		} // if-else
-		
+
+		// basic validation
+		boolean missingEmail = (user.getEmail() == null || user.getEmail().trim().isEmpty());
+		boolean missingPassword = (user.getPassword() == null || user.getPassword().isEmpty());
+		if (missingEmail || missingPassword) {
+			sendJson(exchange, 400, Map.of("error", "email and password are required"));
+			return;
+		} // if
+
+		// prevent duplicate accounts
+		if (db.userExists(user.getEmail())) {
+			sendJson(exchange, 409, Map.of("error", "an account with this email already exists"));
+			return;
+		} // if
+
 		boolean saved = db.addUser(user);
 
 		if (!saved) {

@@ -79,11 +79,44 @@ public class DataHandler {
 				stmt.execute(Schema.PAYMENT_METHODS_TABLE);
 			} // try
 
+			// keep older database files compatible with newer columns
+			ensureColumn(conn, "users", "subscribed_to_promotions", "INTEGER");
+
 	    	return conn;
 		} catch (ReflectiveOperationException roe) {
 	    	throw new SQLException("sqlite-jdbc driver not found on classpath", roe);
 		} // try-catch
     } // connect
+
+    /**
+     * Adds a column to a table if it does not already exist, so database
+     * files created before a schema change stay usable.
+     * @param conn an open database connection.
+     * @param table the table to check.
+     * @param column the column that should exist.
+     * @param type the SQL type of the column.
+     */
+    private void ensureColumn(Connection conn, String table, String column, String type) {
+		// check whether the column already exists
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+			while (rs.next()) {
+				if (column.equals(rs.getString("name"))) {
+					return; // already present, nothing to do
+				} // if
+			} // while
+		} catch (SQLException sqle) {
+			System.err.println("ensureColumn(check): " + sqle);
+			return;
+		} // try-catch
+
+		// column is missing, so add it
+		try (Statement stmt = conn.createStatement()) {
+			stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+		} catch (SQLException sqle) {
+			System.err.println("ensureColumn(alter): " + sqle);
+		} // try-catch
+    } // ensureColumn
 
     /**
      * Adds a movie to the provided database.
@@ -210,6 +243,7 @@ public class DataHandler {
 				stmt.setString(5, "admin");
 				stmt.setString(6, "");
 				stmt.setString(7, "ACTIVE");
+				stmt.setInt(8, 0);
 			} else {
 				// user is a customer
 				Customer customer = (Customer) user;
@@ -217,6 +251,7 @@ public class DataHandler {
 				stmt.setString(5, "customer");
 				stmt.setString(6, customer.getMailingAddress());
 				stmt.setString(7, customer.getState().toString());
+				stmt.setInt(8, customer.isSubscribedToPromotions() ? 1 : 0);
 			} // if-else
 	    
 		    stmt.executeUpdate();
@@ -258,7 +293,7 @@ public class DataHandler {
 					);
 				} else {
 					// user is a customer
-					user = new Customer(
+					Customer customer = new Customer(
 						rs.getString("first_name"),
 						rs.getString("email_address"),
 						rs.getString("password_hash"),
@@ -266,6 +301,8 @@ public class DataHandler {
 						rs.getString("mailing_address"),
 						rs.getString("state")
 					);
+					customer.setSubscribedToPromotions(rs.getInt("subscribed_to_promotions") == 1);
+					user = customer;
 				} // if-else
 				user.setId(rs.getInt("id"));
 			} // while
@@ -352,7 +389,6 @@ public class DataHandler {
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 				while (rs.next()) {
-					System.out.println("in the while...");
 					if (rs.getString("email_address").equals(email)) {
 						return true;
 					} // if

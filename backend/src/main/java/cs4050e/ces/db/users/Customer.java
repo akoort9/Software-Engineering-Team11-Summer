@@ -27,6 +27,9 @@ public class Customer extends User {
     /** State of this customer's account. */
     private CustomerState state = CustomerState.INACTIVE;
 
+    /** Whether the customer opted in to receive promotional emails. */
+    private boolean subscribedToPromotions = false;
+
     /**
      * Initializes a new {@code Customer} object.
      * @param firstName The customer's first name.
@@ -84,4 +87,20 @@ public class Customer extends User {
             this.state = CustomerState.INACTIVE;
         } // if-else
     } // setState
+
+    /**
+     * Returns whether the customer opted in to promotional emails.
+     * @return {@code true} if subscribed, {@code false} otherwise.
+     */
+    public boolean isSubscribedToPromotions() {
+        return subscribedToPromotions;
+    } // isSubscribedToPromotions
+
+    /**
+     * Sets whether the customer is subscribed to promotional emails.
+     * @param subscribedToPromotions the opt-in choice.
+     */
+    public void setSubscribedToPromotions(boolean subscribedToPromotions) {
+        this.subscribedToPromotions = subscribedToPromotions;
+    } // setSubscribedToPromotions
 } // Customer

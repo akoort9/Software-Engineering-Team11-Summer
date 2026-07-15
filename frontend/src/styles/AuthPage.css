@@ -95,3 +95,39 @@
   color: var(--accent);
   white-space: nowrap;
 }
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.form-checkbox input {
+  width: auto;
+}
+
+.form-checkbox label {
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.auth-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(192, 57, 43, 0.12);
+  color: #c0392b;
+  font-size: 0.95rem;
+}
+
+.auth-message {
+  text-align: center;
+  margin: 0 0 24px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin: 0;
+  font-size: 0.9rem;
+}
