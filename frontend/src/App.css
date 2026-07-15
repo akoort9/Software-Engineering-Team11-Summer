@@ -197,3 +197,29 @@
   border: 0;
   border-radius: 8px;
 }
+
+.favorite-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.favorite-button:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.favorite-message {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}

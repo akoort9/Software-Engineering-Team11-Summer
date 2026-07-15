@@ -326,20 +326,143 @@ public class DataHandler {
 	} // addFavoriteMovie
 
 	public boolean removeFavoriteMovie(User user, Movie movie) {
-		throw new UnsupportedOperationException();
+		int userId = resolveUserId(user);
+		int movieId = resolveMovieId(movie);
+		if (userId == -1 || movieId == -1) {
+			return false;
+		} // if
+
+		String sql = "DELETE FROM favorite_movies WHERE user_id = ? AND movie_id = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, userId);
+			stmt.setInt(2, movieId);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("removeFavoriteMovie: " + sqle);
+			return false;
+		} // try-catch
 	} // removeFavoriteMovie
 
 	public List<Movie> getFavoriteMovies(User user) {
-		throw new UnsupportedOperationException();
-	} // getFavoriteMovie
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return null;
+		} // if
+
+		String sql = "SELECT movies.* FROM movies "
+			+ "JOIN favorite_movies ON favorite_movies.movie_id = movies.id "
+			+ "WHERE favorite_movies.user_id = " + userId;
+		List<Movie> movies = new ArrayList<Movie>();
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+			while (rs.next()) {
+				Movie movie = new Movie(
+					rs.getString("title"),
+					rs.getString("genre"),
+					rs.getString("desc"),
+					rs.getString("poster"),
+					rs.getString("trailer"),
+					rs.getInt("rating"),
+					rs.getBoolean("status")
+				);
+				movie.setId(rs.getInt("id"));
+				movies.add(movie);
+			} // while
+
+			rs.close();
+			return movies;
+		} catch (SQLException sqle) {
+			System.err.println("getFavoriteMovies: " + sqle);
+			return null;
+		} // try-catch
+	} // getFavoriteMovies
 
 	public boolean addCard(User user, Card card) {
-		throw new UnsupportedOperationException();
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return false;
+		} // if
+
+		String sql = "INSERT INTO payment_methods (user_id, card_number, "
+			+ "billing_address, expiration_date) VALUES (?, ?, ?, ?)";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, userId);
+			stmt.setString(2, card.getCardNumber());
+			stmt.setString(3, card.getBillingAddress());
+			stmt.setString(4, card.getExpirationDate().toString());
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("addCard: " + sqle);
+			return false;
+		} // try-catch
 	} // addCard
 
 	public List<Card> getCards(User user) {
-		throw new UnsupportedOperationException();
-	} // getCard
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return null;
+		} // if
+
+		String sql = "SELECT * FROM payment_methods WHERE user_id = " + userId;
+		List<Card> cards = new ArrayList<Card>();
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+			while (rs.next()) {
+				String exp = rs.getString("expiration_date");
+				int year = 2000;
+				int month = 1;
+				if (exp != null && exp.contains("-")) {
+					String[] parts = exp.split("-");
+					year = Integer.parseInt(parts[0]);
+					month = Integer.parseInt(parts[1]);
+				} // if
+				cards.add(new Card(
+					rs.getString("card_number"),
+					rs.getString("billing_address"),
+					year,
+					month
+				));
+			} // while
+
+			rs.close();
+			return cards;
+		} catch (Exception e) {
+			System.err.println("getCards: " + e);
+			return null;
+		} // try-catch
+	} // getCards
+
+	/**
+	 * Resolves a {@code User}'s database id, looking it up by email if unset.
+	 * @param user The user.
+	 * @return The database id, or {@code -1} if not found.
+	 */
+	private int resolveUserId(User user) {
+		if (user.getId() != -1) {
+			return user.getId();
+		} // if
+		User dbUser = getUser(user.getEmail());
+		return dbUser == null ? -1 : dbUser.getId();
+	} // resolveUserId
+
+	/**
+	 * Resolves a {@code Movie}'s database id, looking it up by title if unset.
+	 * @param movie The movie.
+	 * @return The database id, or {@code -1} if not found.
+	 */
+	private int resolveMovieId(Movie movie) {
+		if (movie.getId() != -1) {
+			return movie.getId();
+		} // if
+		Movie dbMovie = getMovie(movie.getTitle());
+		return dbMovie == null ? -1 : dbMovie.getId();
+	} // resolveMovieId
 
 	/**
      * Checks if a {@code User} with this email address is in the database.
