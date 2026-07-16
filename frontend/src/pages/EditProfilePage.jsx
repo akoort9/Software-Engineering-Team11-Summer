@@ -92,8 +92,19 @@ export default function EditProfilePage() {
     e.preventDefault()
     setError('')
     setStatus('')
+
+    const cardNumber = newCard.cardNumber.replace(/\s+/g, '')
+    if (!/^\d{13,19}$/.test(cardNumber)) {
+      setError('Enter a valid card number (13-19 digits).')
+      return
+    }
+    if (!/^\d{4}-\d{2}$/.test(newCard.expirationDate)) {
+      setError('Please choose an expiration month (YYYY-MM).')
+      return
+    }
+
     try {
-      await addCard(newCard, email)
+      await addCard({ ...newCard, cardNumber }, email)
       setNewCard({ cardNumber: '', billingAddress: '', expirationDate: '' })
       setCards(await fetchCards(email))
       setStatus('Card added.')
@@ -239,9 +250,12 @@ export default function EditProfilePage() {
                   id="expirationDate"
                   name="expirationDate"
                   type="month"
+                  placeholder="YYYY-MM"
+                  pattern="\d{4}-\d{2}"
                   value={newCard.expirationDate}
                   onChange={updateCardField}
                 />
+                <small className="field-hint">Format: YYYY-MM (e.g. 2027-05)</small>
               </div>
               <button type="submit" className="auth-button">
                 Add Card
