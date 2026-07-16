@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.io.File;
+import java.io.IOException;
 
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.theatre.Movie;
@@ -32,10 +34,17 @@ public class DataHandler {
 	/** Singleton constructor. */
 	private DataHandler() {
 		try {
+			// create db file if it doesn't exist
+			if (!new File(DB_PATH).isFile()) {
+				new File(DB_PATH).createNewFile();
+			} // if			
 			this.conn = connect(DB_PATH);
 		} catch (SQLException sqle) {
 			System.err.println("connect: " + sqle);
-		} // try-catch				
+			return;
+		} catch (IOException ioe) {
+			System.err.println("connect: " + ioe);	
+		} // try-catch	
 	} // DataHandler
 
 	/**

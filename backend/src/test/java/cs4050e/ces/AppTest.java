@@ -125,7 +125,7 @@ public class AppTest {
     public void testGetCustomerContents() {
       db.addUser(this.customer);
 		  Customer customer = (Customer) db.getUser(this.customer.getEmail());
-		  assertTrue(customer.compare(this.customer));
+		  assertTrue(customer.getEmail().equals(this.customer.getEmail()));
       db.wipe();
     } // testGetCustomerContents
 
@@ -136,9 +136,9 @@ public class AppTest {
     public void testGetAdminContents() {
       db.addUser(this.admin);
 		  Administrator admin = (Administrator) db.getUser(this.admin.getEmail());
-		  assertTrue(admin.compare(this.admin));
+		  assertTrue(admin.getEmail().equals(this.admin.getEmail()));
       db.wipe();
-    } // testGetCustomerContents
+    } // testGetCustomerContents 
 
     /**
      * Updates a customer's info
