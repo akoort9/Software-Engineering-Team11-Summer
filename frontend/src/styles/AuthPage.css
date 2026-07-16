@@ -25,6 +25,8 @@
   text-align: center;
   margin: 0 0 24px;
   color: var(--text-h);
+  font-size: 1.5rem;
+  white-space: nowrap;
 }
 
 .auth-form {
@@ -193,6 +195,8 @@
 .profile-back {
   margin-top: 24px;
   text-align: center;
+}
+
 .form-checkbox {
   display: flex;
   align-items: center;
