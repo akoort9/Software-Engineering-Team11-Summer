@@ -609,11 +609,11 @@ public class App {
 			Email email = EmailBuilder.startingBlank()
 				.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
 				.to(user.getName(), user.getEmail())
-				.withSubject("Cinema E-booking System: Please verify your account")
+				.withSubject("Cinema E-booking System: Your verification code")
 				.withPlainText("Hello " + 
 					user.getName() + ", your verification code is: " +
 					code.toString() + ". Please use this code to finish " +
-					"verifying your account.")
+					"setting up your account.")
 				.buildEmail();
 			
 			Mailer mailer = MailerBuilder
