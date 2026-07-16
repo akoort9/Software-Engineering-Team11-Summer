@@ -448,6 +448,13 @@ public class DataHandler {
 			return false;
 		} // if
 
+		// encrypt card before entry
+		try {
+			card = KeyHandler.encryptCard(card);
+		} catch (Exception e) {
+			System.err.println("encryptCard: " + e);
+		} // try-catch	
+
 		String sql = "INSERT INTO payment_methods (user_id, card_number, "
 			+ "billing_address, expiration_date) VALUES (?, ?, ?, ?)";
 
@@ -484,12 +491,12 @@ public class DataHandler {
 					year = Integer.parseInt(parts[0]);
 					month = Integer.parseInt(parts[1]);
 				} // if
-				cards.add(new Card(
+				cards.add(KeyHandler.decryptCard(new Card(
 					rs.getString("card_number"),
 					rs.getString("billing_address"),
 					year,
 					month
-				));
+				)));
 			} // while
 
 			rs.close();
