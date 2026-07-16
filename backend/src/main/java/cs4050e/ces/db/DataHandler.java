@@ -258,7 +258,7 @@ public class DataHandler {
 				String stringHash = new String(messageDigest.digest());
 				stmt.setString(4, stringHash);
 			} catch (NoSuchAlgorithmException nsae) {
-				System.err.println("How did we get here?");
+				System.err.println("How did we get here? addUser: " + nsae);
 				return false;
 			} // try-catch
 
@@ -722,7 +722,17 @@ public class DataHandler {
 			+ "reset_code_expires = NULL WHERE email_address = ?";
 
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			stmt.setString(1, newPassword);
+			// password hashing
+			// Source - https://stackoverflow.com/a/2624385
+			try {
+				MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+				messageDigest.update(newPassword.getBytes());
+				String stringHash = new String(messageDigest.digest());
+				stmt.setString(1, stringHash);
+			} catch (NoSuchAlgorithmException nsae) {
+				System.err.println("How did we get here? updatePassword: " + nsae);
+				return false;
+			} // try-catch
 			stmt.setString(2, email);
 			stmt.executeUpdate();
 			return true;
