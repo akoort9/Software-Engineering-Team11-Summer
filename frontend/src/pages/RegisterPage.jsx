@@ -86,12 +86,6 @@ export default function RegisterPage() {
             Your account has been created but is not yet verified. Enter the
             verification code sent to your email to activate your account.
           </p>
-          {verificationCode && (
-            <p className="auth-message">
-              <strong>Demo:</strong> email delivery is simulated. Your
-              verification code is <strong>{verificationCode}</strong>.
-            </p>
-          )}
           <Link
             to={`/verify?email=${encodeURIComponent(registeredEmail)}`}
             className="auth-button"

@@ -4,7 +4,14 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.simplejavamail.api.email.Email;
+import org.simplejavamail.api.mailer.Mailer;
+import org.simplejavamail.api.mailer.config.TransportStrategy;
+import org.simplejavamail.email.EmailBuilder;
+import org.simplejavamail.mailer.MailerBuilder;
 
+import java.io.IOException;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -258,6 +265,11 @@ public class App {
 		System.out.println("[email] Verification code for " + user.getEmail() + ": " + code);
 
 		sendJson(exchange, 201, Map.of("user", user, "verificationCode", code));
+
+		if(!sendEmail(exchange, user, code)) {
+			sendJson(exchange, 500, Map.of("error", "could not send verification email"));
+			return;
+		} // if
     } // handlePostUser
 
     /**
@@ -581,6 +593,42 @@ public class App {
 
 		sendJson(exchange, 200, Map.of("message", "Account verified. You can now log in."));
     } // handleVerify
+
+	/**
+	 * Sends a verification email to a {@code User} POSTed to this route.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @param user The user to send the email to.
+	 * @param code The user's verification code.
+	 * @throws IOException if writing the response fails
+	 */
+	private static boolean sendEmail(HttpExchange exchange, User user, String code) throws IOException {
+
+		// if the user exists
+		if (db.userExists(user.getEmail())) {
+			// send the email
+			Email email = EmailBuilder.startingBlank()
+				.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
+				.to(user.getName(), user.getEmail())
+				.withSubject("Cinema E-booking System: Please verify your account")
+				.withPlainText("Hello " + 
+					user.getName() + ", your verification code is: " +
+					code.toString() + ". Please use this code to finish " +
+					"verifying your account.")
+				.buildEmail();
+			
+			Mailer mailer = MailerBuilder
+				// i'll actually kill you if you try and use this to get into my account
+				.withSMTPServer("smtp.gmail.com", 587, "qwertyshepherd@gmail.com", "cqbw bpvx xtpk befo")
+				.withTransportStrategy(TransportStrategy.SMTP_TLS)
+				.buildMailer();
+			
+			mailer.sendMail(email);
+			return true;
+		} else {
+			sendJson(exchange, 500, Map.of("error", "user does not exist"));
+			return false;
+		} // if-else
+    } // sendEmail
 
     /**
      * Authenticates a user from an email/password pair in the request body.
