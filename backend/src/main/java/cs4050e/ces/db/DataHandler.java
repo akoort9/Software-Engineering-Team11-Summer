@@ -778,6 +778,14 @@ public class DataHandler {
 			this.addUser(Seed.users[i]);
 		} // for
 
+		// seed fav movie
+		addFavoriteMovie(Seed.users[1], Seed.movies[1]);
+
+		// seed cards
+		for (int i = 0; i < Seed.cards.length; i++) {
+			addCard(Seed.users[2], Seed.cards[i]);
+		} // for
+
 		return true;
 	} // seed
 

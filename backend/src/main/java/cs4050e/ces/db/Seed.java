@@ -1,7 +1,8 @@
 package cs4050e.ces.db;
 
+import cs4050e.ces.db.payment.Card;
 import cs4050e.ces.db.theatre.Movie;
-import cs4050e.ces.db.users.*;;
+import cs4050e.ces.db.users.*;
 
 /** Holds seed variables. */
 class Seed {
@@ -110,7 +111,25 @@ class Seed {
    					"password",
     				"boss",
     				"4530 Sequoia Dr, Oakwood GA 30566",
-    				"ACTIVE")
+    				"ACTIVE"),
+		new Customer("alfred",
+			"ilovemoney@money.com",
+			"money$$$",
+			"moneybags",
+			"123 Nouveau Riche Ln, Marietta GA 30006",
+			"ACTIVE")
+	};
+
+	public static final Card[] cards = {
+		new Card("1234 5678 9101 1121",
+			"123 Nouveau Riche Ln, Marietta GA 30006",
+			2032, 8),
+		new Card("4482 5637 9101 1234",
+			"123 Nouveau Riche Ln, Marietta GA 30006",
+			2036, 2),
+		new Card("6769 5678 9101 8008",
+			"123 Nouveau Riche Ln, Marietta GA 30006",
+			2028, 4)
 	};
 
 } // Seeder
