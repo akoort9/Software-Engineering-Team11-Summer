@@ -23,7 +23,9 @@ class Schema {
                     "password_hash TEXT, " +
                     "role TEXT, " +
                     "mailing_address TEXT, " +
-                    "state TEXT)";
+                    "state TEXT, " +
+                    "subscribed_to_promotions INTEGER, " +
+                    "verification_code TEXT)";
 
     /** SQL statement to create the 'favorite_movies' table. */
     public static final String FAVORITE_MOVIES_TABLE = "CREATE TABLE IF NOT EXISTS favorite_movies (" +
@@ -79,8 +81,8 @@ class Schema {
     /** SQL statement to add a user. */
     public static final String ADD_USER = "INSERT INTO users (" +
                     "first_name, last_name, email_address, password_hash, role, " +
-                    "mailing_address, state) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    "mailing_address, state, subscribed_to_promotions) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
     /** SQL statement to add a showroom. */
     public static final String ADD_SHOWROOM = "INSERT INTO showrooms (" +

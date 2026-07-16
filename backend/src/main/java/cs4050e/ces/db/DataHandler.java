@@ -79,11 +79,45 @@ public class DataHandler {
 				stmt.execute(Schema.PAYMENT_METHODS_TABLE);
 			} // try
 
+			// keep older database files compatible with newer columns
+			ensureColumn(conn, "users", "subscribed_to_promotions", "INTEGER");
+			ensureColumn(conn, "users", "verification_code", "TEXT");
+
 	    	return conn;
 		} catch (ReflectiveOperationException roe) {
 	    	throw new SQLException("sqlite-jdbc driver not found on classpath", roe);
 		} // try-catch
     } // connect
+
+    /**
+     * Adds a column to a table if it does not already exist, so database
+     * files created before a schema change stay usable.
+     * @param conn an open database connection.
+     * @param table the table to check.
+     * @param column the column that should exist.
+     * @param type the SQL type of the column.
+     */
+    private void ensureColumn(Connection conn, String table, String column, String type) {
+		// check whether the column already exists
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+			while (rs.next()) {
+				if (column.equals(rs.getString("name"))) {
+					return; // already present, nothing to do
+				} // if
+			} // while
+		} catch (SQLException sqle) {
+			System.err.println("ensureColumn(check): " + sqle);
+			return;
+		} // try-catch
+
+		// column is missing, so add it
+		try (Statement stmt = conn.createStatement()) {
+			stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+		} catch (SQLException sqle) {
+			System.err.println("ensureColumn(alter): " + sqle);
+		} // try-catch
+    } // ensureColumn
 
     /**
      * Adds a movie to the provided database.
@@ -210,6 +244,7 @@ public class DataHandler {
 				stmt.setString(5, "admin");
 				stmt.setString(6, "");
 				stmt.setString(7, "ACTIVE");
+				stmt.setInt(8, 0);
 			} else {
 				// user is a customer
 				Customer customer = (Customer) user;
@@ -217,6 +252,7 @@ public class DataHandler {
 				stmt.setString(5, "customer");
 				stmt.setString(6, customer.getMailingAddress());
 				stmt.setString(7, customer.getState().toString());
+				stmt.setInt(8, customer.isSubscribedToPromotions() ? 1 : 0);
 			} // if-else
 	    
 		    stmt.executeUpdate();
@@ -258,7 +294,7 @@ public class DataHandler {
 					);
 				} else {
 					// user is a customer
-					user = new Customer(
+					Customer customer = new Customer(
 						rs.getString("first_name"),
 						rs.getString("email_address"),
 						rs.getString("password_hash"),
@@ -266,6 +302,8 @@ public class DataHandler {
 						rs.getString("mailing_address"),
 						rs.getString("state")
 					);
+					customer.setSubscribedToPromotions(rs.getInt("subscribed_to_promotions") == 1);
+					user = customer;
 				} // if-else
 				user.setId(rs.getInt("id"));
 			} // while
@@ -475,7 +513,6 @@ public class DataHandler {
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 				while (rs.next()) {
-					System.out.println("in the while...");
 					if (rs.getString("email_address").equals(email)) {
 						return true;
 					} // if
@@ -486,6 +523,68 @@ public class DataHandler {
 			return false;
 		} // try-catch
     } // exists
+
+	/**
+	 * Stores an email-verification code for the user with the given email.
+	 * @param email The user's email address.
+	 * @param code The verification code to store.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean setVerificationCode(String email, String code) {
+		String sql = "UPDATE users SET verification_code = ? WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, code);
+			stmt.setString(2, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("setVerificationCode: " + sqle);
+			return false;
+		} // try-catch
+	} // setVerificationCode
+
+	/**
+	 * Returns the stored verification code for a user, or {@code null}
+	 * if none is set (e.g. the account is already verified).
+	 * @param email The user's email address.
+	 * @return The verification code, or {@code null}.
+	 */
+	public String getVerificationCode(String email) {
+		String sql = "SELECT verification_code FROM users WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getString("verification_code");
+				} // if
+			} // try
+			return null;
+		} catch (SQLException sqle) {
+			System.err.println("getVerificationCode: " + sqle);
+			return null;
+		} // try-catch
+	} // getVerificationCode
+
+	/**
+	 * Marks a user's account as verified (ACTIVE) and clears their
+	 * verification code.
+	 * @param email The user's email address.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean activateUser(String email) {
+		String sql = "UPDATE users SET state = 'ACTIVE', verification_code = NULL WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("activateUser: " + sqle);
+			return false;
+		} // try-catch
+	} // activateUser
 
 	/**
 	 * Wipes the database and reseeds it.
