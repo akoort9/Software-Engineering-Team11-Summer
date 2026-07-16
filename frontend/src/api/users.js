@@ -121,3 +121,66 @@ export async function verifyUser({ email, code }) {
 
   return res.json()
 }
+
+export async function requestPasswordReset({ email }) {
+  const res = await fetch('/api/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to send password reset email'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function verifyResetCode({ email, code }) {
+  const res = await fetch('/api/verify-reset-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to verify reset code'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function resetPassword({ email, code, newPassword }) {
+  const res = await fetch('/api/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, newPassword }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to reset password'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}

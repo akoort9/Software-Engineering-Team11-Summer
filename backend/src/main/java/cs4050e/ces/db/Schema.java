@@ -25,7 +25,9 @@ class Schema {
                     "mailing_address TEXT, " +
                     "state TEXT, " +
                     "subscribed_to_promotions INTEGER, " +
-                    "verification_code TEXT)";
+                    "verification_code TEXT, " +
+                    "reset_code TEXT, " +
+                    "reset_code_expires TEXT)";
 
     /** SQL statement to create the 'favorite_movies' table. */
     public static final String FAVORITE_MOVIES_TABLE = "CREATE TABLE IF NOT EXISTS favorite_movies (" +
