@@ -64,7 +64,7 @@ export default function HomePage() {
             </h2>
               <p className="movie-genre">{movie.genre}</p>
               <p className="movie-status">{statusLabel(movie.status)}</p>
-	      {getShowtimes(movie).length > 0 ? (  
+	      {(getShowtimes(movie).length > 0) && movie.status ? (  
 		<ul className="showtimes">
 		    {getShowtimes(movie).map((time) => (
 			<li key={time}>
