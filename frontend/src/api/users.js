@@ -58,6 +58,7 @@ export async function addCard(card, email = getCurrentEmail()) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error || 'Failed to add card')
   }
+}
 export async function registerUser(user) {
   const res = await fetch('/api/user', {
     method: 'POST',

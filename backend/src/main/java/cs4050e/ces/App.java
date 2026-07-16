@@ -511,6 +511,8 @@ public class App {
             return -1;
         } // try-catch
     } // intFrom
+	
+	/**
      * Verifies a customer account using an email/code pair from the request
      * body, flipping the account state to ACTIVE when the code matches.
      * @param exchange The HTTP exchange to respond to.
