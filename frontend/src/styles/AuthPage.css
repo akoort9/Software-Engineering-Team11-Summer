@@ -182,6 +182,19 @@
   text-decoration: underline;
 }
 
+.link-plain {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.link-plain:hover {
+  text-decoration: underline;
+}
+
 .mono {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.05em;

@@ -82,6 +82,8 @@ public class DataHandler {
 			// keep older database files compatible with newer columns
 			ensureColumn(conn, "users", "subscribed_to_promotions", "INTEGER");
 			ensureColumn(conn, "users", "verification_code", "TEXT");
+			ensureColumn(conn, "users", "reset_code", "TEXT");
+			ensureColumn(conn, "users", "reset_code_expires", "TEXT");
 
 	    	return conn;
 		} catch (ReflectiveOperationException roe) {
@@ -585,6 +587,121 @@ public class DataHandler {
 			return false;
 		} // try-catch
 	} // activateUser
+
+	/**
+	 * Stores a password-reset code for the user with the given email,
+	 * along with when it expires.
+	 * @param email The user's email address.
+	 * @param code The reset code to store.
+	 * @param expiresAt Epoch-millisecond timestamp after which the code is invalid.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean setResetCode(String email, String code, long expiresAt) {
+		String sql = "UPDATE users SET reset_code = ?, reset_code_expires = ? WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, code);
+			stmt.setString(2, Long.toString(expiresAt));
+			stmt.setString(3, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("setResetCode: " + sqle);
+			return false;
+		} // try-catch
+	} // setResetCode
+
+	/**
+	 * Returns the stored password-reset code for a user, or {@code null}
+	 * if none is set.
+	 * @param email The user's email address.
+	 * @return The reset code, or {@code null}.
+	 */
+	public String getResetCode(String email) {
+		String sql = "SELECT reset_code FROM users WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getString("reset_code");
+				} // if
+			} // try
+			return null;
+		} catch (SQLException sqle) {
+			System.err.println("getResetCode: " + sqle);
+			return null;
+		} // try-catch
+	} // getResetCode
+
+	/**
+	 * Returns when a user's password-reset code expires.
+	 * @param email The user's email address.
+	 * @return Epoch-millisecond expiry timestamp, or {@code 0} if none is set.
+	 */
+	public long getResetCodeExpiry(String email) {
+		String sql = "SELECT reset_code_expires FROM users WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					String raw = rs.getString("reset_code_expires");
+					if (raw != null) {
+						try {
+							return Long.parseLong(raw);
+						} catch (NumberFormatException nfe) {
+							return 0;
+						} // try-catch
+					} // if
+				} // if
+			} // try
+			return 0;
+		} catch (SQLException sqle) {
+			System.err.println("getResetCodeExpiry: " + sqle);
+			return 0;
+		} // try-catch
+	} // getResetCodeExpiry
+
+	/**
+	 * Clears a user's password-reset code and expiry.
+	 * @param email The user's email address.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean clearResetCode(String email) {
+		String sql = "UPDATE users SET reset_code = NULL, reset_code_expires = NULL WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("clearResetCode: " + sqle);
+			return false;
+		} // try-catch
+	} // clearResetCode
+
+	/**
+	 * Sets a new password for a user and clears any pending password-reset
+	 * code, so it can't be reused.
+	 * @param email The user's email address.
+	 * @param newPassword The new password.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean updatePassword(String email, String newPassword) {
+		String sql = "UPDATE users SET password_hash = ?, reset_code = NULL, "
+			+ "reset_code_expires = NULL WHERE email_address = ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, newPassword);
+			stmt.setString(2, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("updatePassword: " + sqle);
+			return false;
+		} // try-catch
+	} // updatePassword
 
 	/**
 	 * Wipes the database and reseeds it.

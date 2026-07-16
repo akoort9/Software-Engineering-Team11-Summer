@@ -41,6 +41,9 @@ public class App {
     /** Source of randomness for verification codes. */
     private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
 
+    /** How long a password-reset code stays valid after it's sent. */
+    private static final long RESET_CODE_TTL_MILLIS = 15 * 60 * 1000;
+
     /**
      * Starts the HTTP server.
      * @param args unused.
@@ -55,6 +58,9 @@ public class App {
 		server.createContext("/api/cards", App::handleCards);
 		server.createContext("/api/login", App::handleLogin);
 		server.createContext("/api/verify", App::handleVerify);
+		server.createContext("/api/forgot-password", App::handleForgotPassword);
+		server.createContext("/api/verify-reset-code", App::handleVerifyResetCode);
+		server.createContext("/api/reset-password", App::handleResetPassword);
 		server.setExecutor(null);
 		server.start();
 		System.out.println("Listening on http://localhost:" + PORT);
@@ -595,6 +601,200 @@ public class App {
     } // handleVerify
 
 	/**
+	 * Starts a password-reset flow for an email/request body. Always
+	 * responds with a generic message, whether or not an account exists
+	 * for that email, so the response can't be used to test which emails
+	 * are registered.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+    private static void handleForgotPassword(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} // if
+
+		if (!method.equals("POST")) {
+			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		Map<?, ?> json;
+
+		try {
+			json = GSON.fromJson(body, Map.class);
+		} catch (Exception e) {
+			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} // try-catch
+
+		Object emailObj = (json == null ? null : json.get("email"));
+		String email = emailObj == null ? "" : emailObj.toString().trim();
+
+		if (email.isEmpty()) {
+			sendJson(exchange, 400, Map.of("error", "Email is required."));
+			return;
+		} // if
+
+		User user = db.getUser(email);
+		if (user != null) {
+			String code = generateVerificationCode();
+			long expiresAt = System.currentTimeMillis() + RESET_CODE_TTL_MILLIS;
+			db.setResetCode(email, code, expiresAt);
+			System.out.println("[email] Password reset code for " + email + ": " + code);
+
+			if (!sendPasswordResetEmail(user, code)) {
+				System.err.println("[email] failed to send password reset email to " + email);
+			} // if
+		} // if
+
+		// same response regardless of whether the account exists
+		sendJson(exchange, 200,
+			Map.of("message", "If an account exists for that email, a password reset code has been sent."));
+    } // handleForgotPassword
+
+	/**
+	 * Checks whether a password-reset code is correct and unexpired for
+	 * the given email.
+	 * @param email The user's email address.
+	 * @param code The reset code to check.
+	 * @return {@code true} if the code matches and hasn't expired.
+	 */
+	private static boolean isResetCodeValid(String email, String code) {
+		String storedCode = db.getResetCode(email);
+		if (storedCode == null || storedCode.isEmpty() || !storedCode.equals(code)) {
+			return false;
+		} // if
+		return db.getResetCodeExpiry(email) > System.currentTimeMillis();
+	} // isResetCodeValid
+
+	/**
+	 * Confirms an email/code pair from a password-reset flow without
+	 * changing any account state, so the frontend can move the user on to
+	 * the "choose a new password" step.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+    private static void handleVerifyResetCode(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} // if
+
+		if (!method.equals("POST")) {
+			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		Map<?, ?> json;
+
+		try {
+			json = GSON.fromJson(body, Map.class);
+		} catch (Exception e) {
+			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} // try-catch
+
+		Object emailObj = (json == null ? null : json.get("email"));
+		Object codeObj = (json == null ? null : json.get("code"));
+		String email = emailObj == null ? "" : emailObj.toString().trim();
+		String code = codeObj == null ? "" : codeObj.toString().trim();
+
+		if (email.isEmpty() || code.isEmpty()) {
+			sendJson(exchange, 400, Map.of("error", "Email and reset code are required."));
+			return;
+		} // if
+
+		if (!db.userExists(email) || !isResetCodeValid(email, code)) {
+			sendJson(exchange, 400, Map.of("error", "Incorrect or expired reset code."));
+			return;
+		} // if
+
+		sendJson(exchange, 200, Map.of("message", "Code verified."));
+    } // handleVerifyResetCode
+
+	/**
+	 * Completes a password-reset flow: re-checks the email/code pair from
+	 * the request body and, if still valid, sets the account's new
+	 * password and clears the reset code.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+    private static void handleResetPassword(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} // if
+
+		if (!method.equals("POST")) {
+			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		Map<?, ?> json;
+
+		try {
+			json = GSON.fromJson(body, Map.class);
+		} catch (Exception e) {
+			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} // try-catch
+
+		Object emailObj = (json == null ? null : json.get("email"));
+		Object codeObj = (json == null ? null : json.get("code"));
+		Object passwordObj = (json == null ? null : json.get("newPassword"));
+		String email = emailObj == null ? "" : emailObj.toString().trim();
+		String code = codeObj == null ? "" : codeObj.toString().trim();
+		String newPassword = passwordObj == null ? "" : passwordObj.toString();
+
+		if (email.isEmpty() || code.isEmpty() || newPassword.isEmpty()) {
+			sendJson(exchange, 400, Map.of("error", "Email, code, and new password are required."));
+			return;
+		} // if
+
+		if (newPassword.length() < 8) {
+			sendJson(exchange, 400, Map.of("error", "Password must be at least 8 characters."));
+			return;
+		} // if
+
+		if (!db.userExists(email) || !isResetCodeValid(email, code)) {
+			sendJson(exchange, 400, Map.of("error", "Incorrect or expired reset code."));
+			return;
+		} // if
+
+		if (!db.updatePassword(email, newPassword)) {
+			sendJson(exchange, 500, Map.of("error", "could not reset password"));
+			return;
+		} // if
+
+		sendJson(exchange, 200, Map.of("message", "Password reset. You can now log in."));
+    } // handleResetPassword
+
+	/**
 	 * Sends a verification email to a {@code User} POSTed to this route.
 	 * @param exchange The HTTP exchange to respond to.
 	 * @param user The user to send the email to.
@@ -610,25 +810,58 @@ public class App {
 				.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
 				.to(user.getName(), user.getEmail())
 				.withSubject("Cinema E-booking System: Your verification code")
-				.withPlainText("Hello " + 
+				.withPlainText("Hello " +
 					user.getName() + ", your verification code is: " +
 					code.toString() + ". Please use this code to finish " +
 					"setting up your account.")
 				.buildEmail();
-			
-			Mailer mailer = MailerBuilder
-				// i'll actually kill you if you try and use this to get into my account
-				.withSMTPServer("smtp.gmail.com", 587, "qwertyshepherd@gmail.com", "cqbw bpvx xtpk befo")
-				.withTransportStrategy(TransportStrategy.SMTP_TLS)
-				.buildMailer();
-			
-			mailer.sendMail(email);
+
+			buildMailer().sendMail(email);
 			return true;
 		} else {
 			sendJson(exchange, 500, Map.of("error", "user does not exist"));
 			return false;
 		} // if-else
     } // sendEmail
+
+	/**
+	 * Sends a password-reset code to a user's email address.
+	 * @param user The user requesting a password reset.
+	 * @param code The reset code to send.
+	 * @return {@code true} if the email was sent, {@code false} otherwise.
+	 */
+	private static boolean sendPasswordResetEmail(User user, String code) {
+		try {
+			Email email = EmailBuilder.startingBlank()
+				.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
+				.to(user.getName(), user.getEmail())
+				.withSubject("Cinema E-booking System: Your password reset code")
+				.withPlainText("Hello " +
+					user.getName() + ", your password reset code is: " +
+					code + ". Use this code to reset your password. If you " +
+					"didn't request this, you can safely ignore this email.")
+				.buildEmail();
+
+			buildMailer().sendMail(email);
+			return true;
+		} catch (Exception e) {
+			System.err.println("sendPasswordResetEmail: " + e);
+			return false;
+		} // try-catch
+	} // sendPasswordResetEmail
+
+	/**
+	 * Builds a {@code Mailer} configured to send through the project's
+	 * Gmail account.
+	 * @return A configured {@code Mailer}.
+	 */
+	private static Mailer buildMailer() {
+		return MailerBuilder
+			// i'll actually kill you if you try and use this to get into my account
+			.withSMTPServer("smtp.gmail.com", 587, "qwertyshepherd@gmail.com", "cqbw bpvx xtpk befo")
+			.withTransportStrategy(TransportStrategy.SMTP_TLS)
+			.buildMailer();
+	} // buildMailer
 
     /**
      * Authenticates a user from an email/password pair in the request body.
