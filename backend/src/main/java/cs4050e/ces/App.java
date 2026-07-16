@@ -17,6 +17,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -901,6 +903,18 @@ public class App {
 		Object passwordObj = (json == null ? null : json.get("password"));
 		String email = emailObj == null ? "" : emailObj.toString().trim();
 		String password = passwordObj == null ? "" : passwordObj.toString();
+
+		// password hashing
+		// Source - https://stackoverflow.com/a/2624385
+			try {
+				MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+				messageDigest.update(password.getBytes());
+				password = new String(messageDigest.digest());
+			} catch (NoSuchAlgorithmException nsae) {
+				System.err.println("How did we get here?");
+				sendJson(exchange, 401, Map.of("error", "Incorrect email or password."));
+				return;
+			} // try-catch
 
 		if (email.isEmpty() || password.isEmpty()) {
 			sendJson(exchange, 400, Map.of("error", "Email and password are required."));

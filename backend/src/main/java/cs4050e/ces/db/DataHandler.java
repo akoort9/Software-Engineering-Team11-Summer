@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.theatre.Movie;
@@ -238,7 +240,18 @@ public class DataHandler {
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 	    	stmt.setString(1, user.getName());
 			stmt.setString(3, user.getEmail());
-		    stmt.setString(4, user.getPassword());
+
+			// password hashing
+			// Source - https://stackoverflow.com/a/2624385
+			try {
+				MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+				messageDigest.update(user.getPassword().getBytes());
+				String stringHash = new String(messageDigest.digest());
+				stmt.setString(4, stringHash);
+			} catch (NoSuchAlgorithmException nsae) {
+				System.err.println("How did we get here?");
+				return false;
+			} // try-catch
 
 			if (user.isAdmin()) {
 				// user is an admin

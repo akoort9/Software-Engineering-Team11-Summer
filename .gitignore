@@ -1,5 +1,5 @@
 # Database
-backend/db/*
+backend/db/listings.db
 
 # Logs
 logs
