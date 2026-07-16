@@ -27,6 +27,30 @@ public class Card {
     } // Card
 
     /**
+     * Returns the card number.
+     * @return The card number.
+     */
+    public String getCardNumber() {
+        return cardNumber;
+    } // getCardNumber
+
+    /**
+     * Returns the billing address.
+     * @return The billing address.
+     */
+    public String getBillingAddress() {
+        return billingAddress;
+    } // getBillingAddress
+
+    /**
+     * Returns the expiration date.
+     * @return The expiration date.
+     */
+    public YearMonth getExpirationDate() {
+        return expirationDate;
+    } // getExpirationDate
+
+    /**
      * Returns whether the card is expired or not.
      * @return {@code true} if the current date is past the expiration date,
      * and {@code false} otherwise.

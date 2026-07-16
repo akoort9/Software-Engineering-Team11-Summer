@@ -1,42 +1,97 @@
 package cs4050e.ces.db.payment;
 
+import java.time.LocalDateTime;
+
 import cs4050e.ces.db.DataHandler;
 
 /** Represents a ticket to one {@code Seat} for a {@code Showtime}. */
 public class Ticket {
+    /** Connection to the database. */
+    private static final DataHandler db = DataHandler.getInstance();
+
     /**
-     * Tracks the type of the ticket and therefore its price
-     * {@code ADULT} - Adult price ticket.
+     * Tracks the class of the ticket and therefore its price.
+     * {@code STANDARD} - Standard price ticket.
      * {@code CHILD} - Child price ticket.
      * {@code SENIOR} - Senior price ticket.
      */
     public enum TicketType {
-        ADULT,
+        STANDARD,
         CHILD,
         SENIOR
     };
 
     /** Database ID. */
-    int ticketId;
+    private int id = -1;
 
-    /** Type of ticket to determine price. */
-    TicketType ticketType;
+    /** The user who purchased this ticket. */
+    private int userId;
+
+    /** The showtime this ticket is for. */
+    private int showtimeId;
+
+    /** The seat reserved by this ticket. */
+    private int seatId;
+
+    /** Class of ticket, determines price. */
+    private TicketType ticketClass;
 
     /** Price of the ticket. */
-    double price;
+    private double price;
+
+    /** When the ticket was purchased. */
+    private LocalDateTime purchaseDate;
 
     /**
-     * Initializes a new {@code Ticket} object.
-     * @param id The database ID.
-     * @param type The ticket's type, defining its price.
+     * Initializes a new {@code Ticket} object, looking up its price
+     * from the database based on {@code ticketClass}.
+     * @param userId The ID of the purchasing user.
+     * @param showtimeId The ID of the showtime being booked.
+     * @param seatId The ID of the seat being reserved.
+     * @param ticketClass The ticket's class, defining its price.
      */
-    public Ticket(int id, TicketType type) {
-        if (type == null) {
-            throw new IllegalArgumentException("type must be a TicketType enum");
+    public Ticket(int userId, int showtimeId, int seatId, TicketType ticketClass) {
+        if (ticketClass == null) {
+            throw new IllegalArgumentException("ticketClass must be a TicketType enum");
         } // if
 
-        this.ticketId = id;
-        this.ticketType = type;
-        this.price = DataHandler.getTicketPrice(this.ticketType);
+        this.userId = userId;
+        this.showtimeId = showtimeId;
+        this.seatId = seatId;
+        this.ticketClass = ticketClass;
+        this.price = db.getTicketPrice(this.ticketClass);
+        this.purchaseDate = LocalDateTime.now();
     } // Ticket
+
+    public int getId() {
+        return id;
+    } // getId
+
+    public void setId(int id) {
+        this.id = id;
+    } // setId
+
+    public int getUserId() {
+        return userId;
+    } // getUserId
+
+    public int getShowtimeId() {
+        return showtimeId;
+    } // getShowtimeId
+
+    public int getSeatId() {
+        return seatId;
+    } // getSeatId
+
+    public TicketType getTicketClass() {
+        return ticketClass;
+    } // getTicketClass
+
+    public double getPrice() {
+        return price;
+    } // getPrice
+
+    public LocalDateTime getPurchaseDate() {
+        return purchaseDate;
+    } // getPurchaseDate
 } // Ticket

@@ -3,6 +3,9 @@ import HomePage from './pages/HomePage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import MovieDetailPage from './pages/MovieDetailPage.jsx'
 import BookingPage from './pages/BookingPage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
+import EditProfilePage from './pages/EditProfilePage.jsx'
 
 export default function App() {
   return (
@@ -12,6 +15,9 @@ export default function App() {
         <Route path="/movies/:id" element={<MovieDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/booking" element={<BookingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/edit-profile" element={<EditProfilePage />} />
       </Routes>
     </BrowserRouter>
   )

@@ -108,7 +108,7 @@ export default function BookingPage() {
 
   return (
     <main className="booking-page">
-      <h1 style={{ color: '#000' }}>Booking Page UI</h1>
+      <h1>Booking Page UI</h1>
 
       {bookingSuccess && (
         <div className="success-message">

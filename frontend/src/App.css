@@ -2,7 +2,6 @@
   max-width: 480px;
   margin: 4rem auto;
   padding: 0 1.5rem;
-  font-family: system-ui, sans-serif;
   text-align: left;
 }
 
@@ -11,8 +10,10 @@
   padding: 0.6rem 0.8rem;
   font-size: 1rem;
   box-sizing: border-box;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-h);
 }
 
 .movie-list {
@@ -32,17 +33,18 @@
 }
 
 .movie-card {
-  background: #d6cfc7;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  text-align: left;
+  box-shadow: var(--shadow);
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .movie-card:hover {
   transform: translateY(-2px);
-  border-color: #dbeafe;
+  border-color: var(--accent-border);
 }
 
 .movie-card h2 {
@@ -51,19 +53,25 @@
 }
 
 .movie-card h2 a {
-  color: #111827;
+  color: var(--text-h);
   text-decoration: none;
 }
 
 .movie-card h2 a:hover {
-  text-decoration: underline;
+  color: var(--accent);
 }
 
-.movie-genre,
-.movie-status {
+.movie-genre {
   margin: 0;
   font-size: 0.95rem;
-  color: #4b5563;
+  color: var(--text-muted);
+}
+
+.movie-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .movie-showtimes {
@@ -78,21 +86,15 @@
   align-items: center;
   justify-content: center;
   padding: 0.35rem 0.8rem;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
   border-radius: 999px;
   font-size: 0.9rem;
-  color: #2563eb;
-}
-
-.movie-status {
-  margin-top: 0.5rem;
-  font-weight: 700;
-  color: #2563eb;
+  color: var(--accent);
 }
 
 .error {
-  color: #c0392b;
+  color: var(--error);
   margin-top: 0.5rem;
 }
 
@@ -168,7 +170,7 @@
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--code-bg);
+  background: var(--surface-2);
   color: var(--text-h);
   text-decoration: none;
   cursor: pointer;
@@ -194,4 +196,30 @@
   height: 100%;
   border: 0;
   border-radius: 8px;
+}
+
+.favorite-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.favorite-button:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.favorite-message {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
 }

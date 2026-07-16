@@ -1,12 +1,5 @@
 package cs4050e.ces.db.users;
 
-import cs4050e.ces.db.payment.Card;
-import cs4050e.ces.db.theatre.Movie;
-import cs4050e.ces.db.payment.Booking;
-
-import java.util.ArrayList;
-import java.util.List;
-
 /** Represents a customer as a {@code User} with standard privileges. */
 public class Customer extends User {
 
@@ -28,54 +21,67 @@ public class Customer extends User {
     };
 
     /** This user's information. */
-    private String firstName;
-    private String lastName;
-    private String mailingAddress;
-
-    /** This user's payment cards. */
-    private Card[] paymentCards = new Card[MAX_CARDS];
-
-    /**
-     * A list of this user's favorite movies.
-     * Stored as a movie's database ID.
-     */
-    private List<Integer> favorites;
-
-    /** A list of the user's past bookings. */
-    private List<Booking> bookingHistory;
+    private String lastName = "";
+    private String mailingAddress = "";
 
     /** State of this customer's account. */
-    private CustomerState state;
+    private CustomerState state = CustomerState.INACTIVE;
 
-    public Customer(int id,
-		    String email,
-		    String password,
-		    String firstName,
-		    String lastName) {
+    /**
+     * Initializes a new {@code Customer} object.
+     * @param firstName The customer's first name.
+     * @param email The customer's email address.
+     * @param password The customer's hashed password.
+     * @param lastName The customer's last name.
+     * @param mailingAddress The customer's mailing address.
+     * @param state The state of the customer's account.
+     */
+    public Customer(String firstName,
+                    String email,           
+                    String password,       
+                    String lastName, 
+                    String mailingAddress,
+                    String state) {
 	
-	    super(id, email, password);
-    	this.firstName = firstName;
+	    super(firstName, email, password);
 	    this.lastName = lastName;
-    	this.state = CustomerState.INACTIVE;
+        this.mailingAddress = mailingAddress;
+    	setState(state);
     } // Customer
 
-    public void addFavorite(Movie movie) {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // addFavorite
+    /**
+     * Returns the user's last name.
+     * @return The last name.
+     */
+    public String getLastName() {
+        return lastName;
+    } // getLastName
 
-    public void removeFavorite(Movie movie) {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // removeFavorite
+    /**
+     * Return the user's mailing address.
+     * @return The mailing address.
+     */
+    public String getMailingAddress() {
+        return mailingAddress;
+    } // getMailingAddress
 
-    public boolean addPaymentCard(Card card) {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // addPaymentCard
+    /**
+     * Returns the state of the customer's account.
+     * @return The user state.
+     */
+    public CustomerState getState() {
+        return state;
+    } // getState
 
-    public void removePaymentCard(Card card) {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // removePaymentCard
-
-    public List<Booking> viewBookingHistory() {
-        throw new UnsupportedOperationException("method not yet implemented");
-    } // viewBookingHistory
+    public void setState(String state) {
+        if (state.equals("ACTIVE")) {
+            this.state = CustomerState.ACTIVE;
+        } else if (state.equals("INACTIVE")) {
+            this.state = CustomerState.INACTIVE;
+        } else if (state.equals("SUSPENDED")) {
+            this.state = CustomerState.SUSPENDED;
+        } else {
+            this.state = CustomerState.INACTIVE;
+        } // if-else
+    } // setState
 } // Customer
