@@ -52,6 +52,13 @@ public class App {
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
+		// seed the database on first run when it is empty
+		List<Movie> existingMovies = db.getMovies();
+		if (existingMovies == null || existingMovies.isEmpty()) {
+			db.wipe();
+			System.out.println("Seeded empty database.");
+		} // if
+
 		HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
 		server.createContext("/api/movies", App::handleMovies);

@@ -1,0 +1,1 @@
+# Keeps the db / directory in the repo so SQLite can create listings.db here on first run.

@@ -33,6 +33,10 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!email) {
+      setLoading(false)
+      return
+    }
     Promise.all([
       fetchUser(email).then((u) =>
         setProfile({
@@ -96,6 +100,18 @@ export default function EditProfilePage() {
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  if (!email) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <h1>Edit Profile</h1>
+          <p className="auth-message">Please log in to view your profile.</p>
+          <Link to="/login" className="auth-button">Go to Login</Link>
+        </div>
+      </main>
+    )
   }
 
   if (loading) {
