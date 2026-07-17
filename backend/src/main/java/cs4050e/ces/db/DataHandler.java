@@ -31,6 +31,9 @@ public class DataHandler {
 	/** Connection to the database. */
 	private Connection conn = null;
 
+	/** Singleton object to hash passwords. */
+	private static MessageDigest messageDigest;
+
 	/** Singleton constructor. */
 	private DataHandler() {
 		try {
@@ -249,18 +252,7 @@ public class DataHandler {
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 	    	stmt.setString(1, user.getName());
 			stmt.setString(3, user.getEmail());
-
-			// password hashing
-			// Source - https://stackoverflow.com/a/2624385
-			try {
-				MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-				messageDigest.update(user.getPassword().getBytes());
-				String stringHash = new String(messageDigest.digest());
-				stmt.setString(4, stringHash);
-			} catch (NoSuchAlgorithmException nsae) {
-				System.err.println("How did we get here? addUser: " + nsae);
-				return false;
-			} // try-catch
+			stmt.setString(4, hashPassword(user.getPassword()));
 
 			if (user.isAdmin()) {
 				// user is an admin
@@ -340,21 +332,43 @@ public class DataHandler {
 		} // try-catch
 	} // getUser
 
+	/**
+	 * Updates a user in the database with a given {@code User}'s 
+	 * mutable information. The given {@code User} object must share
+	 * the email address of the user you wish to update.
+	 * @param user The user 
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean updateUser(User user) {
-		String sql = null;
+		String sql;
+		User dbUser;
+
+		// error and sanity checking
+		try {
+			dbUser = getUser(user.getEmail());
+			if (dbUser.isAdmin() ^ user.isAdmin()) {
+				// cannot update user to a different role
+				return false;
+			} // if
+		} catch (NullPointerException npe) {
+			System.err.println("updateUser: " + npe);
+			return false;
+		} // try-catch
 
 		// update user info according to role
-		if (user.isAdmin()) {
+		int userId = resolveUserId(user);
+		if (dbUser.isAdmin()) {
 			sql = "UPDATE users SET first_name = '" + user.getName() +
-			"' WHERE id = " + user.getId();
+			"' WHERE id = " + userId;
 		} else {
 			Customer customer = (Customer) user;
 			sql = "UPDATE users SET first_name = '" + user.getName() +
 			"', last_name = '" + customer.getLastName() + 
 			"', mailing_address = '" + customer.getMailingAddress() + "' " +
-			"WHERE id = " + user.getId();
+			"WHERE id = " + userId;
 		} // if
 
+		// run SQL
 		try (Statement stmt = conn.createStatement()) {
 			stmt.executeUpdate(sql);
 			return true;
@@ -364,21 +378,25 @@ public class DataHandler {
 		} // try-catch
 	} // updateUser
 
+	/**
+	 * Adds a given {@code Movie} to a given {@code User}'s
+	 * favorite movie list in the database.
+	 * @param user The user who favorited the movie.
+	 * @param movie The movie to favorite.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean addFavoriteMovie(User user, Movie movie) {
+		int userId = resolveUserId(user);
+		int movieId = resolveMovieId(movie);
+		if (userId == -1 || movieId == -1) {
+			return false;
+		} // if
+
+		// run SQL
 		String sql = Schema.ADD_FAVORITE_MOVIE;
-
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			// check for valid IDs, if not grab objects from DB
-			if (user.getId() == -1 || movie.getId() == -1) {
-				User dbUser = getUser(user.getEmail());
-				Movie dbMovie = getMovie(movie.getTitle());
-				stmt.setInt(1, dbUser.getId());
-				stmt.setInt(2, dbMovie.getId());
-			} else {
-				stmt.setInt(1, user.getId());
-				stmt.setInt(2, movie.getId());
-			} // if-else
-
+			stmt.setInt(1, userId);
+			stmt.setInt(2, movieId);
 			stmt.executeUpdate();
 			return true;			
 		} catch (SQLException sqle) {
@@ -387,6 +405,13 @@ public class DataHandler {
 		} // try-catch
 	} // addFavoriteMovie
 
+	/**
+	 * Removes a {@code Movie} from a given {@code User}'s
+	 * favorite movie list.
+	 * @param user The user who favorited the movie.
+	 * @param movie The movie to remove.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean removeFavoriteMovie(User user, Movie movie) {
 		int userId = resolveUserId(user);
 		int movieId = resolveMovieId(movie);
@@ -394,8 +419,8 @@ public class DataHandler {
 			return false;
 		} // if
 
-		String sql = "DELETE FROM favorite_movies WHERE user_id = ? AND movie_id = ?";
-
+		// run SQL
+		String sql = Schema.REMOVE_FAVORITE_MOVIE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt(1, userId);
 			stmt.setInt(2, movieId);
@@ -407,17 +432,24 @@ public class DataHandler {
 		} // try-catch
 	} // removeFavoriteMovie
 
+	/**
+	 * Grabs a given {@code User}'s favorite movies from the database.
+	 * @param user The user
+	 * @return A {@code List<Movie>} of all the {@code User}'s
+	 * favorite movies.
+	 */
 	public List<Movie> getFavoriteMovies(User user) {
 		int userId = resolveUserId(user);
 		if (userId == -1) {
 			return null;
 		} // if
 
-		String sql = "SELECT movies.* FROM movies "
-			+ "JOIN favorite_movies ON favorite_movies.movie_id = movies.id "
-			+ "WHERE favorite_movies.user_id = " + userId;
 		List<Movie> movies = new ArrayList<Movie>();
 
+		// run SQL
+		String sql = "SELECT movies.* FROM movies " +
+			"JOIN favorite_movies ON favorite_movies.movie_id = movies.id " +
+			"WHERE favorite_movies.user_id = " + userId;
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 			while (rs.next()) {
@@ -442,22 +474,28 @@ public class DataHandler {
 		} // try-catch
 	} // getFavoriteMovies
 
+	/**
+	 * Add a {@code Card} to the database for a given {@code User}.
+	 * @param user The user
+	 * @param card The card
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean addCard(User user, Card card) {
 		int userId = resolveUserId(user);
 		if (userId == -1) {
 			return false;
 		} // if
-
+		
 		// encrypt card before entry
 		try {
 			card = KeyHandler.encryptCard(card);
 		} catch (Exception e) {
 			System.err.println("encryptCard: " + e);
+			return false;
 		} // try-catch	
 
-		String sql = "INSERT INTO payment_methods (user_id, card_number, "
-			+ "billing_address, expiration_date) VALUES (?, ?, ?, ?)";
-
+		// run SQL
+		String sql = Schema.ADD_CARD;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt(1, userId);
 			stmt.setString(2, card.getCardNumber());
@@ -471,15 +509,21 @@ public class DataHandler {
 		} // try-catch
 	} // addCard
 
+	/**
+	 * Returns a given {@code User}'s stored {@code Card}'s.
+	 * @param user The user
+	 * @return A {@code List<Card>} of all the {@code User}'s {@code Card}'s.
+	 */
 	public List<Card> getCards(User user) {
 		int userId = resolveUserId(user);
 		if (userId == -1) {
 			return null;
 		} // if
 
-		String sql = "SELECT * FROM payment_methods WHERE user_id = " + userId;
 		List<Card> cards = new ArrayList<Card>();
 
+		// run SQL
+		String sql = "SELECT * FROM payment_methods WHERE user_id = " + userId;
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 			while (rs.next()) {
@@ -513,7 +557,9 @@ public class DataHandler {
 	 * @return The database id, or {@code -1} if not found.
 	 */
 	private int resolveUserId(User user) {
-		if (user.getId() != -1) {
+		if (user == null) {
+			return -1;
+		} else if (user.getId() != -1) {
 			return user.getId();
 		} // if
 		User dbUser = getUser(user.getEmail());
@@ -526,7 +572,9 @@ public class DataHandler {
 	 * @return The database id, or {@code -1} if not found.
 	 */
 	private int resolveMovieId(Movie movie) {
-		if (movie.getId() != -1) {
+		if (movie == null) {
+			return -1;
+		} else if (movie.getId() != -1) {
 			return movie.getId();
 		} // if
 		Movie dbMovie = getMovie(movie.getTitle());
@@ -562,8 +610,7 @@ public class DataHandler {
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
 	public boolean setVerificationCode(String email, String code) {
-		String sql = "UPDATE users SET verification_code = ? WHERE email_address = ?";
-
+		String sql = Schema.SET_VERIFICATION_CODE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, code);
 			stmt.setString(2, email);
@@ -582,8 +629,7 @@ public class DataHandler {
 	 * @return The verification code, or {@code null}.
 	 */
 	public String getVerificationCode(String email) {
-		String sql = "SELECT verification_code FROM users WHERE email_address = ?";
-
+		String sql = Schema.GET_VERIFICATION_CODE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, email);
 			try (ResultSet rs = stmt.executeQuery()) {
@@ -605,8 +651,7 @@ public class DataHandler {
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
 	public boolean activateUser(String email) {
-		String sql = "UPDATE users SET state = 'ACTIVE', verification_code = NULL WHERE email_address = ?";
-
+		String sql = Schema.ACTIVATE_USER;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, email);
 			stmt.executeUpdate();
@@ -626,8 +671,7 @@ public class DataHandler {
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
 	public boolean setResetCode(String email, String code, long expiresAt) {
-		String sql = "UPDATE users SET reset_code = ?, reset_code_expires = ? WHERE email_address = ?";
-
+		String sql = Schema.SET_RESET_CODE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, code);
 			stmt.setString(2, Long.toString(expiresAt));
@@ -647,8 +691,7 @@ public class DataHandler {
 	 * @return The reset code, or {@code null}.
 	 */
 	public String getResetCode(String email) {
-		String sql = "SELECT reset_code FROM users WHERE email_address = ?";
-
+		String sql = Schema.GET_RESET_CODE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, email);
 			try (ResultSet rs = stmt.executeQuery()) {
@@ -669,8 +712,7 @@ public class DataHandler {
 	 * @return Epoch-millisecond expiry timestamp, or {@code 0} if none is set.
 	 */
 	public long getResetCodeExpiry(String email) {
-		String sql = "SELECT reset_code_expires FROM users WHERE email_address = ?";
-
+		String sql = Schema.GET_RESET_CODE_EXPIRY;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, email);
 			try (ResultSet rs = stmt.executeQuery()) {
@@ -698,8 +740,7 @@ public class DataHandler {
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
 	public boolean clearResetCode(String email) {
-		String sql = "UPDATE users SET reset_code = NULL, reset_code_expires = NULL WHERE email_address = ?";
-
+		String sql = Schema.CLEAR_RESET_CODE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, email);
 			stmt.executeUpdate();
@@ -718,21 +759,9 @@ public class DataHandler {
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
 	public boolean updatePassword(String email, String newPassword) {
-		String sql = "UPDATE users SET password_hash = ?, reset_code = NULL, "
-			+ "reset_code_expires = NULL WHERE email_address = ?";
-
+		String sql = Schema.UPDATE_PASSWORD;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			// password hashing
-			// Source - https://stackoverflow.com/a/2624385
-			try {
-				MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-				messageDigest.update(newPassword.getBytes());
-				String stringHash = new String(messageDigest.digest());
-				stmt.setString(1, stringHash);
-			} catch (NoSuchAlgorithmException nsae) {
-				System.err.println("How did we get here? updatePassword: " + nsae);
-				return false;
-			} // try-catch
+			stmt.setString(1, hashPassword(newPassword));
 			stmt.setString(2, email);
 			stmt.executeUpdate();
 			return true;
@@ -741,6 +770,24 @@ public class DataHandler {
 			return false;
 		} // try-catch
 	} // updatePassword
+
+    /**
+     * Hashes the given {@code String} with the SHA-256 algorithm.
+     * @param plaintext The string to hash.
+     * @return The hashed {@code String}.
+     */
+    private String hashPassword(String plaintext) {
+        try {
+            messageDigest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException nsae) {
+            System.err.println("hashPassword: " + nsae);
+            return null;
+        } // try-catch
+        
+        // hash password
+		messageDigest.update(plaintext.getBytes());
+		return new String(messageDigest.digest());
+    } // hashPassword
 
 	/**
 	 * Wipes the database and reseeds it.

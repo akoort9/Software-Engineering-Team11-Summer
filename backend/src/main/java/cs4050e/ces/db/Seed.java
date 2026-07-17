@@ -117,7 +117,13 @@ class Seed {
 			"money$$$",
 			"moneybags",
 			"123 Nouveau Riche Ln, Marietta GA 30006",
-			"ACTIVE")
+			"ACTIVE"),
+		new Customer("jake", 
+			"jakerules@jake.com",
+			"jakerules123",
+			"shepherd",
+			"my address lol",
+			"INACTIVE")
 	};
 
 	public static final Card[] cards = {

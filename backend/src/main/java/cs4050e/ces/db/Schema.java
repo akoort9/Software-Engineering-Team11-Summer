@@ -78,7 +78,7 @@ class Schema {
     /** SQL statement to add a movie. */
     public static final String ADD_MOVIE = "INSERT INTO movies (" +
                     "title, genre, \"desc\", poster, trailer, status, rating) " +
-    	    	    "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    	    	        "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     /** SQL statement to add a user. */
     public static final String ADD_USER = "INSERT INTO users (" +
@@ -105,5 +105,52 @@ class Schema {
     
     /** SQL statement to add a favorite movie. */
     public static final String ADD_FAVORITE_MOVIE = "INSERT INTO favorite_movies (" +
-		"user_id, movie_id) VALUES (?, ?)";
+		                "user_id, movie_id) VALUES (?, ?)";
+
+    /** SQL statement to remove a favorite movie. */
+    public static final String REMOVE_FAVORITE_MOVIE = "DELETE FROM favorite_movies " +
+                    "WHERE user_id = ? AND movie_id = ?";
+
+    /** SQL statement to add a card. */
+    public static final String ADD_CARD = "INSERT INTO payment_methods (user_id, card_number, " +
+		                "billing_address, expiration_date) VALUES (?, ?, ?, ?)";
+
+    /** SQL statement to set a verification code. */
+    public static final String SET_VERIFICATION_CODE = "UPDATE users SET verification_code = ? " +
+                    "WHERE email_address = ?";
+    
+    /** SQL statement to get a verification code. */
+    public static final String GET_VERIFICATION_CODE = "SELECT verification_code FROM users " +
+                    "WHERE email_address = ?";
+    
+    /** SQL statement to activate a user. */
+    public static final String ACTIVATE_USER = "UPDATE users SET state = 'ACTIVE', " +
+                    "verification_code = NULL WHERE email_address = ?";
+    
+    /** SQL statement to set a password reset code. */
+    public static final String SET_RESET_CODE = "UPDATE users SET reset_code = ?, " +
+                    "reset_code_expires = ? WHERE email_address = ?";
+    
+    /** SQL statement to get a password reset code. */
+    public static final String GET_RESET_CODE = "SELECT reset_code FROM users WHERE email_address = ?";
+
+    /** SQL statement to get a password reset code expiry date. */
+    public static final String GET_RESET_CODE_EXPIRY = "SELECT reset_code_expires FROM users " +
+                    "WHERE email_address = ?";
+    
+    /** SQL statement to clear a password reset code. */
+    public static final String CLEAR_RESET_CODE = "UPDATE users SET reset_code = NULL, " +
+                    "reset_code_expires = NULL WHERE email_address = ?";
+
+    /** SQL statement to update a user's password. */
+    public static final String UPDATE_PASSWORD = "UPDATE users SET password_hash = ?, " +
+                    "reset_code = NULL, reset_code_expires = NULL WHERE email_address = ?";
+
+    /** */
+
+
+    /** */
+
+
+    /** */
 } // Schema
