@@ -407,7 +407,7 @@ public class App {
      */
     private static void handleCards(HttpExchange exchange) throws IOException {
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
 
         String method = exchange.getRequestMethod();
@@ -431,6 +431,7 @@ public class App {
             List<Map<String, String>> out = new ArrayList<>();
             for (Card card : cards) {
                 Map<String, String> m = new HashMap<>();
+                m.put("id", String.valueOf(card.getId()));
                 m.put("cardNumber", card.getCardNumber());
                 m.put("billingAddress", card.getBillingAddress());
                 m.put("expirationDate", card.getExpirationDate().toString());
@@ -440,7 +441,7 @@ public class App {
             return;
         } // if
 
-        if (!method.equals("POST")) {
+        if (!method.equals("POST") && !method.equals("PUT") && !method.equals("DELETE")) {
             sendJson(exchange, 405, Map.of("error", "method not allowed"));
             return;
         } // if
@@ -455,12 +456,8 @@ public class App {
         } // try-catch
 
         String email = str(json == null ? null : json.get("email"));
-        String cardNumber = str(json.get("cardNumber"));
-        String billingAddress = str(json.get("billingAddress"));
-        String expiration = str(json.get("expirationDate"));
-
-        if (email.isEmpty() || cardNumber.isEmpty() || !expiration.contains("-")) {
-            sendJson(exchange, 400, Map.of("error", "email, cardNumber, and expirationDate (YYYY-MM) are required"));
+        if (email.isEmpty()) {
+            sendJson(exchange, 400, Map.of("error", "email is required"));
             return;
         } // if
 
@@ -470,9 +467,25 @@ public class App {
             return;
         } // if
 
-        List<Card> existing = db.getCards(user);
-        if (existing != null && existing.size() >= Customer.MAX_CARDS) {
-            sendJson(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
+        // remove a card
+        if (method.equals("DELETE")) {
+            int cardId = intFrom(json.get("cardId"));
+            if (cardId == -1) {
+                sendJson(exchange, 400, Map.of("error", "cardId is required"));
+                return;
+            } // if
+            boolean removed = db.removeCard(user, cardId);
+            sendJson(exchange, removed ? 200 : 500, Map.of("ok", removed));
+            return;
+        } // if
+
+        // POST and PUT both need card details
+        String cardNumber = str(json.get("cardNumber"));
+        String billingAddress = str(json.get("billingAddress"));
+        String expiration = str(json.get("expirationDate"));
+
+        if (cardNumber.isEmpty() || !expiration.contains("-")) {
+            sendJson(exchange, 400, Map.of("error", "cardNumber and expirationDate (YYYY-MM) are required"));
             return;
         } // if
 
@@ -480,6 +493,25 @@ public class App {
         int year = Integer.parseInt(parts[0]);
         int month = Integer.parseInt(parts[1]);
         Card card = new Card(cardNumber, billingAddress, year, month);
+
+        // update an existing card
+        if (method.equals("PUT")) {
+            int cardId = intFrom(json.get("cardId"));
+            if (cardId == -1) {
+                sendJson(exchange, 400, Map.of("error", "cardId is required"));
+                return;
+            } // if
+            boolean updated = db.updateCard(user, cardId, card);
+            sendJson(exchange, updated ? 200 : 500, Map.of("ok", updated));
+            return;
+        } // if
+
+        // add a new card (POST)
+        List<Card> existing = db.getCards(user);
+        if (existing != null && existing.size() >= Customer.MAX_CARDS) {
+            sendJson(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
+            return;
+        } // if
 
         boolean ok = db.addCard(user, card);
         sendJson(exchange, ok ? 201 : 500, Map.of("ok", ok));

@@ -527,20 +527,27 @@ public class DataHandler {
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 			while (rs.next()) {
-				String exp = rs.getString("expiration_date");
-				int year = 2000;
-				int month = 1;
-				if (exp != null && exp.contains("-")) {
-					String[] parts = exp.split("-");
-					year = Integer.parseInt(parts[0]);
-					month = Integer.parseInt(parts[1]);
-				} // if
-				cards.add(KeyHandler.decryptCard(new Card(
-					rs.getString("card_number"),
-					rs.getString("billing_address"),
-					year,
-					month
-				)));
+				try {
+					String exp = rs.getString("expiration_date");
+					int year = 2000;
+					int month = 1;
+					if (exp != null && exp.contains("-")) {
+						String[] parts = exp.split("-");
+						year = Integer.parseInt(parts[0]);
+						month = Integer.parseInt(parts[1]);
+					} // if
+					Card card = KeyHandler.decryptCard(new Card(
+						rs.getString("card_number"),
+						rs.getString("billing_address"),
+						year,
+						month
+					));
+					card.setId(rs.getInt("id"));
+					cards.add(card);
+				} catch (Exception e) {
+					// skip a card that can't be decrypted (e.g. stored with an old key)
+					System.err.println("getCards (skipping card): " + e);
+				} // try-catch
 			} // while
 
 			rs.close();
@@ -550,6 +557,67 @@ public class DataHandler {
 			return null;
 		} // try-catch
 	} // getCards
+
+	/**
+	 * Removes a {@code Card} belonging to the given {@code User}.
+	 * @param user The card's owner.
+	 * @param cardId The id of the card to remove.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean removeCard(User user, int cardId) {
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return false;
+		} // if
+
+		String sql = "DELETE FROM payment_methods WHERE id = ? AND user_id = ?";
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, cardId);
+			stmt.setInt(2, userId);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("removeCard: " + sqle);
+			return false;
+		} // try-catch
+	} // removeCard
+
+	/**
+	 * Updates a {@code Card} belonging to the given {@code User}.
+	 * @param user The card's owner.
+	 * @param cardId The id of the card to update.
+	 * @param card The new card details.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean updateCard(User user, int cardId, Card card) {
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return false;
+		} // if
+
+		// encrypt card before entry
+		try {
+			card = KeyHandler.encryptCard(card);
+		} catch (Exception e) {
+			System.err.println("encryptCard: " + e);
+			return false;
+		} // try-catch
+
+		String sql = "UPDATE payment_methods SET card_number = ?, billing_address = ?, "
+			+ "expiration_date = ? WHERE id = ? AND user_id = ?";
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, card.getCardNumber());
+			stmt.setString(2, card.getBillingAddress());
+			stmt.setString(3, card.getExpirationDate().toString());
+			stmt.setInt(4, cardId);
+			stmt.setInt(5, userId);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("updateCard: " + sqle);
+			return false;
+		} // try-catch
+	} // updateCard
 
 	/**
 	 * Resolves a {@code User}'s database id, looking it up by email if unset.

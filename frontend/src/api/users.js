@@ -59,6 +59,31 @@ export async function addCard(card, email = getCurrentEmail()) {
     throw new Error(data.error || 'Failed to add card')
   }
 }
+
+export async function updateCard(cardId, card, email = getCurrentEmail()) {
+  const res = await fetch('/api/cards', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...card, cardId, email }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Failed to update card')
+  }
+}
+
+export async function removeCard(cardId, email = getCurrentEmail()) {
+  const res = await fetch('/api/cards', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cardId, email }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Failed to remove card')
+  }
+}
+
 export async function registerUser(user) {
   const res = await fetch('/api/user', {
     method: 'POST',
