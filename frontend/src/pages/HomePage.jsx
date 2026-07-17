@@ -4,9 +4,12 @@ import { fetchMovies } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
 import { getShowtimes } from '../utils/showtimes.js'
 import { useAuth } from '../auth/AuthContext.jsx'
+import { useFavorites } from '../hooks/useFavorites.js'
+import FavoriteStar from '../components/FavoriteStar.jsx'
 
 export default function HomePage() {
   const { user, logout } = useAuth()
+  const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
   const [movies, setMovies] = useState([])
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
@@ -59,9 +62,17 @@ export default function HomePage() {
       <div className="movie-grid">
         {visibleMovies.map((movie) => (
           <article key={movie.id} className="movie-card">
-            <h2>
-              <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-            </h2>
+            <div className="movie-card-header">
+              <h2>
+                <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+              </h2>
+              {canFavorite && (
+                <FavoriteStar
+                  favorited={isFavorited(movie.id)}
+                  onClick={() => toggleFavorite(movie.id)}
+                />
+              )}
+            </div>
               <p className="movie-genre">{movie.genre}</p>
               <p className="movie-status">{statusLabel(movie.status)}</p>
 	      {(getShowtimes(movie).length > 0) && movie.status ? (  

@@ -9,6 +9,8 @@ import {
   addCard,
 } from '../api/users.js'
 import { getCurrentEmail } from '../utils/currentUser.js'
+import FavoriteStar from '../components/FavoriteStar.jsx'
+import '../App.css'
 import '../styles/AuthPage.css'
 
 export default function EditProfilePage() {
@@ -192,13 +194,10 @@ export default function EditProfilePage() {
               {favorites.map((movie) => (
                 <li key={movie.id} className="profile-list-row">
                   <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-                  <button
-                    type="button"
-                    className="link-danger"
+                  <FavoriteStar
+                    favorited
                     onClick={() => handleRemoveFavorite(movie.id)}
-                  >
-                    Remove
-                  </button>
+                  />
                 </li>
               ))}
             </ul>

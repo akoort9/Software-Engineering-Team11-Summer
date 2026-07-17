@@ -198,28 +198,45 @@
   border-radius: 8px;
 }
 
-.favorite-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.9rem;
-  margin-bottom: 1.25rem;
-  border: 1px solid var(--accent-border);
-  border-radius: 8px;
-  background: var(--accent-bg);
-  color: var(--accent);
-  font: inherit;
+.favorite-star {
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+  font-size: 1.5rem;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.favorite-button:hover {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-.favorite-message {
   color: var(--text-muted);
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+  transition: color 0.15s, transform 0.1s;
+}
+
+.favorite-star:hover {
+  color: #f5c518;
+  transform: scale(1.15);
+}
+
+.favorite-star.is-favorited {
+  color: #f5c518;
+}
+
+.movie-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.movie-card-header h2 {
+  margin: 0 0 0.5rem;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.detail-title-row .favorite-star {
+  font-size: 2rem;
+  margin-top: 0.5rem;
 }
