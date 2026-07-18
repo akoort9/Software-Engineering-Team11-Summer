@@ -14,10 +14,19 @@ import javax.crypto.spec.SecretKeySpec;
 import cs4050e.ces.db.payment.Card;
 
 public class KeyHandler {
+    /** Symmetric key used for encryption/decryption. */
     private static SecretKey secretKey = null;
 
+    /** File path of the symmetric key. Store this somewhere secure in production. */
     private static final String KEY_PATH = "./db/.key";
 
+    /**
+     * Encrypts a {@code Card}'s information and returns it as a 
+     * separate object. 
+     * @param card The payment card to encrypt.
+     * @return A {@code Card} with all its information encrypted.
+     * @throws Exception if the encryption fails.
+     */
     static Card encryptCard(Card card) throws Exception {
         int year = card.getExpirationDate().getYear();
         int month = card.getExpirationDate().getMonthValue();
@@ -30,6 +39,13 @@ public class KeyHandler {
         return encryptedCard;
     } // getCard
 
+    /**
+     * Decrypts a {@code Card}'s information and returns it as a 
+     * separate object. 
+     * @param card The payment card to decrypt.
+     * @return A {@code Card} with all its information decrypted.
+     * @throws Exception if the decryption fails.
+     */
     static Card decryptCard(Card encryptedCard) throws Exception {
         int year = encryptedCard.getExpirationDate().getYear();
         int month = encryptedCard.getExpirationDate().getMonthValue();
@@ -43,23 +59,34 @@ public class KeyHandler {
         return decryptedCard;
     } // decryptCard
 
+    /**
+     * Creates a {@code SecretKey} and writes its base-64
+     * encoding to the given file path. 
+     * @param keyFile The file path of the new {@code SecretKey}.
+     * @throws Exception if writing to the file fails.
+     */
     private static void createKey(File keyFile) throws Exception {
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         keyGenerator.init(256);
         setKey(keyGenerator.generateKey());
         // store in file
-        byte [] keyBytes = secretKey.getEncoded();
-        byte [] base64Bytes = Base64.getEncoder().encode(keyBytes);
+        byte[] keyBytes = secretKey.getEncoded();
+        byte[] base64Bytes = Base64.getEncoder().encode(keyBytes);
 
         try (FileOutputStream stream = new FileOutputStream(keyFile)) {
             stream.write(base64Bytes);
         } // try
     } // createKey
 
+    /** Sets the {@code SecretKey} for this class. */
     private static void setKey(SecretKey key) {
         secretKey = key;
     } // setKey
 
+    /**
+     * Gets the {@code SecretKey} from its location.
+     * @throws Exception if file I/O fails.
+     */
     private static void getKey() throws Exception {
         if (secretKey != null) {
             return;
@@ -70,12 +97,19 @@ public class KeyHandler {
             // create key
             createKey(keyFile);
         } else {
-            byte [] decodedKey = Base64.getDecoder().decode(Files.readAllBytes(keyFile.toPath()));
+            byte[] decodedKey = Base64.getDecoder().decode(Files.readAllBytes(keyFile.toPath()));
             SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
             secretKey = key;
         } // if-else
     } // getKey
 
+    /**
+     * Encrypts a given plaintext {@code String} and returns
+     * its base-64 encoding.
+     * @param plaintext The text to encrypt.
+     * @return The base-64 encoding of the ciphertext.
+     * @throws Exception if the encryption fails.
+     */
     private static String encrypt(String plaintext) throws Exception {
         getKey();
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -92,6 +126,13 @@ public class KeyHandler {
         return Base64.getEncoder().encodeToString(combined);
     } // encrypt
 
+    /**
+     * Decrypts a given base-64 encoded ciphertext {@code String} 
+     * and returns the plaintext.
+     * @param ciphertext The base-64 encoding of the text to decrypt.
+     * @return The plaintext.
+     * @throws Exception if the decryption fails.
+     */
     private static String decrypt(String ciphertext) throws Exception{
         getKey();
         byte[] combined = Base64.getDecoder().decode(ciphertext);

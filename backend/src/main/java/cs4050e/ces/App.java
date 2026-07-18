@@ -4,24 +4,19 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.simplejavamail.api.email.Email;
-import org.simplejavamail.api.mailer.Mailer;
-import org.simplejavamail.api.mailer.config.TransportStrategy;
-import org.simplejavamail.email.EmailBuilder;
-import org.simplejavamail.mailer.MailerBuilder;
+import com.google.gson.JsonSyntaxException;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import cs4050e.ces.api.requests.*;
+import cs4050e.ces.api.responses.*;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
 import cs4050e.ces.db.payment.Card;
@@ -50,12 +45,17 @@ public class App {
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
-		// seed the database on first run when it is empty
-		List<Movie> existingMovies = db.getMovies();
-		if (existingMovies == null || existingMovies.isEmpty()) {
-			db.wipe();
-			System.out.println("Seeded empty database.");
-		} // if
+		// check args
+		for (String arg: args) {
+			switch(arg) {
+				case "--fresh":
+					db.wipe();
+					System.out.println("Seeded empty database.");
+					break;
+				default:
+					break;
+			} // switch
+		} // for
 
 		HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
@@ -96,7 +96,7 @@ public class App {
 			handlePostMovie(exchange);
 		} // elif
 		else {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 		} // else
     } // handleMovies
 
@@ -109,11 +109,11 @@ public class App {
 		List<Movie> movies = db.getMovies();
 
 		if (movies == null) {
-			sendJson(exchange, 500, Map.of("error", "could not read database"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
 			return;
-		} // if
-
-		sendJson(exchange, 200, movies);
+		} else {
+			JsonResponse.send(exchange, 200, movies);
+		} // if-else
     } // handleGetMovies
 
     /**
@@ -123,34 +123,35 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostMovie(HttpExchange exchange) throws IOException {
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
+		MovieRequest request = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, MovieRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handlePostMovie: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handlePostMovie: " + ioe);
 			return;
 		} // try-catch
 
-		Object titleObj = (json == null ? null : json.get("title"));
-		String title = titleObj == null ? "" : titleObj.toString().trim();
-
-		if (title.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "title is required"));
-			return;
-		} // if
-
 		// only the title comes from the user right now; everything else defaults to empty
-		Movie movie = new Movie(title, "", "", "", "", 0, false);
+		Movie movie = new Movie(request.title, "", "", "", "", 0, false);
 		boolean saved = db.addMovie(movie);
 
 		if (!saved) {
-			sendJson(exchange, 500, Map.of("error", "could not save movie"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not save movie"));
 			return;
 		} // if
 
-		sendJson(exchange, 201, movie);
+		JsonResponse.send(exchange, 201, movie);
     } // handlePostMovie
 
 	/**
@@ -179,7 +180,7 @@ public class App {
 			handleUpdateUser(exchange);
 		} // elif
 		else {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 		} // else
     } // handleUsers
 
@@ -189,26 +190,16 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleGetUser(HttpExchange exchange) throws IOException {
-		//System.out.println("woah!");
-
-		String queryString = exchange.getRequestURI().getQuery();
-
-		// if there's no '?email=' in the query
-		if (!queryString.split("=", 2)[0].equals("email")) {
-			sendJson(exchange, 500, Map.of("error", "invalid query"));
-			return;
-		} // if
-
-		String email = queryString.split("=", 2)[1];
-		//System.out.println("we got an email! : " + email);
+		// extract email from query
+		String email = queryEmail(exchange);
 
 		// user with email does not exist
 		if (!db.userExists(email)) {
-			sendJson(exchange, 500, Map.of("error", "could not find user"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not find user"));
 			return;
 		} // if
 
-		sendJson(exchange, 200, db.getUser(email));
+		JsonResponse.send(exchange, 200, db.getUser(email));
     } // handleGetMovies
 
 	/**
@@ -218,69 +209,66 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostUser(HttpExchange exchange) throws IOException {
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
-		User user;
+		AddUserRequest request = null;
+		User user = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, AddUserRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handlePostUser: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handlePostUser: " + ioe);
 			return;
 		} // try-catch
 
-		// checking if user is an admin
-		Object isAdminObj = (json == null ? null : json.get("isAdmin"));
-		boolean isAdmin = (isAdminObj == null ? false : Boolean.parseBoolean(isAdminObj.toString().trim()));
-
 		// making appropriate objects
-		if (isAdmin) {
-			user = GSON.fromJson(body, Administrator.class);
+		if (request.isAdmin) {
+			user = new Administrator(
+				request.name, 
+				request.email, 
+				request.password
+			);
 		} else {
-			Customer customer = GSON.fromJson(body, Customer.class);
-			// new registrations are always unverified until email confirmation
-			customer.setState("INACTIVE");
-			user = customer;
+			user = new Customer(
+				request.name,
+				request.email,
+				request.password,
+				request.lastName, 
+				request.mailingAddress,
+			"INACTIVE"
+			);
 		} // if-else
-
-		// basic validation
-		boolean missingEmail = (user.getEmail() == null || user.getEmail().trim().isEmpty());
-		boolean missingPassword = (user.getPassword() == null || user.getPassword().isEmpty());
-		if (missingEmail || missingPassword) {
-			sendJson(exchange, 400, Map.of("error", "email and password are required"));
-			return;
-		} // if
-
-		// prevent duplicate accounts
-		if (db.userExists(user.getEmail())) {
-			sendJson(exchange, 409, Map.of("error", "an account with this email already exists"));
-			return;
-		} // if
 
 		boolean saved = db.addUser(user);
 
 		if (!saved) {
-			sendJson(exchange, 500, Map.of("error", "could not save user"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not save user"));
 			return;
 		} // if
 
-		// admins are active immediately; customers must verify by email
-		if (isAdmin) {
-			sendJson(exchange, 201, user);
+		if (request.isAdmin) {
+			// admins are active immediately; customers must verify by email
+			JsonResponse.send(exchange, 201, user);
 			return;
 		} // if
 
-		// generate a verification code and "email" it. For this project the
-		// email is simulated: the code is printed to the server console and
-		// returned so the demo UI can display it.
+		// generate a verification code and email it.
 		String code = generateVerificationCode();
 		db.setVerificationCode(user.getEmail(), code);
 		System.out.println("[email] Verification code for " + user.getEmail() + ": " + code);
 
-		sendJson(exchange, 201, Map.of("user", user, "verificationCode", code));
+		JsonResponse.send(exchange, 201, Map.of("user", user, "verificationCode", code));
 
-		if(!sendEmail(exchange, user, code)) {
-			sendJson(exchange, 500, Map.of("error", "could not send verification email"));
+		if(!EmailResponse.send(EmailResponse.Template.VERIFICATION, user, code)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not send verification email"));
 			return;
 		} // if
     } // handlePostUser
@@ -291,48 +279,47 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleUpdateUser(HttpExchange exchange) throws IOException {
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<?, ?> json;
+		UpdateUserRequest request = null;
 
-        try {
-            json = GSON.fromJson(body, Map.class);
-        } catch (Exception e) {
-            sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-            return;
-        } // try-catch
+		try {
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, UpdateUserRequest.class);
 
-        String email = str(json == null ? null : json.get("email"));
-        if (email.isEmpty()) {
-            sendJson(exchange, 400, Map.of("error", "email is required"));
-            return;
-        } // if
-
-        User existing = db.getUser(email);
-        if (existing == null) {
-            sendJson(exchange, 404, Map.of("error", "user not found"));
-            return;
-        } // if
-
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handleUpdateUser: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handleUpdateUser: " + ioe);
+			return;
+		} // try-catch
+        
         Customer updated = new Customer(
-            str(json.get("name")),
-            email,
+            request.name,
+            request.email,
             "",
-            str(json.get("lastName")),
-            str(json.get("mailingAddress")),
+            request.lastName,
+            request.mailingAddress,
             "ACTIVE"
         );
-        updated.setId(existing.getId());
 
         if (!db.updateUser(updated)) {
-            sendJson(exchange, 500, Map.of("error", "could not update user"));
+            JsonResponse.send(exchange, 500, Map.of("error", "could not update user"));
             return;
         } // if
 
-        sendJson(exchange, 200, db.getUser(email));
+        JsonResponse.send(exchange, 200, db.getUser(request.email));
     } // handleUpdateUser
 
     /**
-     * Handles a user's favorite movies: GET lists them, POST adds one, DELETE removes one.
+     * Handles a user's favorite movies: 
+	 * GET lists them, 
+	 * POST adds one, 
+	 * DELETE removes one.
      * @param exchange The HTTP exchange to respond to.
      * @throws IOException if writing the response fails.
      */
@@ -346,62 +333,79 @@ public class App {
         if (method.equals("OPTIONS")) {
             exchange.sendResponseHeaders(204, -1);
             return;
-        } // if
+        } else if (method.equals("GET")) {
+            handleGetFavorites(exchange);
+        } else if (method.equals("POST") || method.equals("DELETE")) {
+			handlePostFavorites(exchange);
+		} else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+            return;
+		} // if-else
+    } // handleFavorites
 
-        if (method.equals("GET")) {
-            String email = queryEmail(exchange);
-            if (email == null) {
-                sendJson(exchange, 400, Map.of("error", "email is required"));
-                return;
-            } // if
-            List<Movie> favorites = db.getFavoriteMovies(customerFor(email));
-            if (favorites == null) {
-                sendJson(exchange, 500, Map.of("error", "could not read favorites"));
-                return;
-            } // if
-            sendJson(exchange, 200, favorites);
+	/**
+     * Handles getting a user's favorite movies.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+	private static void handleGetFavorites(HttpExchange exchange) throws IOException {
+		String email = queryEmail(exchange);
+        if (email == null) {
+            JsonResponse.send(exchange, 400, Map.of("error", "email is required"));
             return;
         } // if
 
-        if (!method.equals("POST") && !method.equals("DELETE")) {
-            sendJson(exchange, 405, Map.of("error", "method not allowed"));
+        List<Movie> favorites = db.getFavoriteMovies(customerFor(email));
+
+        if (favorites == null) {
+            JsonResponse.send(exchange, 500, Map.of("error", "could not read favorites"));
             return;
         } // if
 
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<?, ?> json;
-        try {
-            json = GSON.fromJson(body, Map.class);
-        } catch (Exception e) {
-            sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-            return;
-        } // try-catch
+        JsonResponse.send(exchange, 200, favorites);
+	} // handleGetFavorites
 
-        String email = str(json == null ? null : json.get("email"));
-        int movieId = intFrom(json == null ? null : json.get("movieId"));
-        if (email.isEmpty() || movieId == -1) {
-            sendJson(exchange, 400, Map.of("error", "email and movieId are required"));
-            return;
-        } // if
+	/**
+     * Handles adding or removing a user's favorite movies.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+	private static void handlePostFavorites(HttpExchange exchange) throws IOException {
+		FavoriteMovieRequest request = null;
 
-        User user = db.getUser(email);
-        if (user == null) {
-            sendJson(exchange, 404, Map.of("error", "user not found"));
-            return;
-        } // if
+		try {
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, FavoriteMovieRequest.class);
 
-        Movie movie = new Movie("", "", "", "", "", 0, false);
-        movie.setId(movieId);
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handlePostFavorites: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handlePostFavorites: " + ioe);
+			return;
+		} // try-catch
 
-        boolean ok = method.equals("POST")
+		User user = db.getUser(request.email);
+        Movie movie = db.getMovie(request.movieId);
+
+        boolean ok = exchange.getRequestMethod().equals("POST")
             ? db.addFavoriteMovie(user, movie)
             : db.removeFavoriteMovie(user, movie);
 
-        sendJson(exchange, ok ? 200 : 500, Map.of("ok", ok));
-    } // handleFavorites
+        JsonResponse.send(exchange, ok ? 200 : 500, Map.of("ok", ok));
+	} // handlePostFavorites
 
     /**
-     * Handles a user's payment cards: GET lists them, POST adds one (max 3).
+     * Handles a user's payment cards: 
+	 * GET lists them, 
+	 * POST adds one (max 3),
+	 * DELETE removes one,
+	 * PUT updates one.
      * @param exchange The HTTP exchange to respond to.
      * @throws IOException if writing the response fails.
      */
@@ -415,107 +419,119 @@ public class App {
         if (method.equals("OPTIONS")) {
             exchange.sendResponseHeaders(204, -1);
             return;
-        } // if
+        } else if (method.equals("GET")) {
+			handleGetCards(exchange);
+		} else if (method.equals("POST") ||
+			method.equals("PUT") ||
+			method.equals("DELETE")) {
+			handlePostCards(exchange);
+		} else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+            return;
+		} // if-else
+    } // handleCards
 
-        if (method.equals("GET")) {
-            String email = queryEmail(exchange);
-            if (email == null) {
-                sendJson(exchange, 400, Map.of("error", "email is required"));
-                return;
-            } // if
-            List<Card> cards = db.getCards(customerFor(email));
-            if (cards == null) {
-                sendJson(exchange, 500, Map.of("error", "could not read cards"));
-                return;
-            } // if
-            List<Map<String, String>> out = new ArrayList<>();
-            for (Card card : cards) {
-                Map<String, String> m = new HashMap<>();
-                m.put("id", String.valueOf(card.getId()));
-                m.put("cardNumber", card.getCardNumber());
-                m.put("billingAddress", card.getBillingAddress());
-                m.put("expirationDate", card.getExpirationDate().toString());
-                out.add(m);
-            } // for
-            sendJson(exchange, 200, out);
+	/**
+     * Handles getting a user's payment cards: 
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleGetCards(HttpExchange exchange) throws IOException {
+		String email = queryEmail(exchange);
+        if (email == null) {
+            JsonResponse.send(exchange, 400, Map.of("error", "email is required"));
             return;
         } // if
 
-        if (!method.equals("POST") && !method.equals("PUT") && !method.equals("DELETE")) {
-            sendJson(exchange, 405, Map.of("error", "method not allowed"));
+        List<Card> cards = db.getCards(customerFor(email));
+
+        if (cards == null) {
+            JsonResponse.send(exchange, 500, Map.of("error", "could not read cards"));
             return;
         } // if
 
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<?, ?> json;
-        try {
-            json = GSON.fromJson(body, Map.class);
-        } catch (Exception e) {
-            sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-            return;
-        } // try-catch
+        List<Map<String, String>> out = new ArrayList<>();
+            
+		for (Card card : cards) {
+            Map<String, String> m = new HashMap<>();
+            m.put("id", String.valueOf(card.getId()));
+            m.put("cardNumber", card.getCardNumber());
+            m.put("billingAddress", card.getBillingAddress());
+            m.put("expirationDate", card.getExpirationDate().toString());
+            out.add(m);
+	    } // for
+            
+		JsonResponse.send(exchange, 200, out);  
+		return;
+	} // handleGetCards
 
-        String email = str(json == null ? null : json.get("email"));
-        if (email.isEmpty()) {
-            sendJson(exchange, 400, Map.of("error", "email is required"));
-            return;
-        } // if
+	/**
+     * Handles adding, updating or removing a user's payment cards.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handlePostCards(HttpExchange exchange) throws IOException {
+		String method = exchange.getRequestMethod();
+		UpdateCardRequest request = null;
 
-        User user = db.getUser(email);
-        if (user == null) {
-            sendJson(exchange, 404, Map.of("error", "user not found"));
-            return;
-        } // if
+		try {
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
-        // remove a card
-        if (method.equals("DELETE")) {
-            int cardId = intFrom(json.get("cardId"));
-            if (cardId == -1) {
-                sendJson(exchange, 400, Map.of("error", "cardId is required"));
-                return;
-            } // if
-            boolean removed = db.removeCard(user, cardId);
-            sendJson(exchange, removed ? 200 : 500, Map.of("ok", removed));
-            return;
-        } // if
+			// DELETE sends a simple CardRequest
+			if (method.equals("DELETE")) {
+				CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
+				// check request
+				if (!deleteRequest.check(exchange)) {
+					System.err.println("handlePostCards: failed request.");
+					return;
+				} else {
+					boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
+            		JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
+            		return;
+				} // else
+			// POST or PUT sends an UpdateCardRequest
+			} else {
+				request = GSON.fromJson(body, UpdateCardRequest.class);
+			} // if-else
+			
+			// check POST or PUT request
+			if (!request.check(exchange)) {
+				System.err.println("handlePostCards: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handlePostCards: " + ioe);
+			return;
+		} // try-catch
 
-        // POST and PUT both need card details
-        String cardNumber = str(json.get("cardNumber"));
-        String billingAddress = str(json.get("billingAddress"));
-        String expiration = str(json.get("expirationDate"));
+		User user = db.getUser(request.email);
 
-        if (cardNumber.isEmpty() || !expiration.contains("-")) {
-            sendJson(exchange, 400, Map.of("error", "cardNumber and expirationDate (YYYY-MM) are required"));
-            return;
-        } // if
-
-        String[] parts = expiration.split("-");
+		// POST and PUT both need card details 
+        String[] parts = request.expirationDate.split("-");
         int year = Integer.parseInt(parts[0]);
         int month = Integer.parseInt(parts[1]);
-        Card card = new Card(cardNumber, billingAddress, year, month);
+        Card card = new Card(request.cardNumber, request.billingAddress, year, month);
 
-        // update an existing card
-        if (method.equals("PUT")) {
-            int cardId = intFrom(json.get("cardId"));
-            if (cardId == -1) {
-                sendJson(exchange, 400, Map.of("error", "cardId is required"));
-                return;
-            } // if
-            boolean updated = db.updateCard(user, cardId, card);
-            sendJson(exchange, updated ? 200 : 500, Map.of("ok", updated));
+        // update an existing card (PUT)
+        if (exchange.getRequestMethod().equals("PUT")) {
+            boolean updated = db.updateCard(user, request.cardId, card);
+            JsonResponse.send(exchange, updated ? 200 : 500, Map.of("ok", updated));
             return;
         } // if
 
         // add a new card (POST)
         List<Card> existing = db.getCards(user);
         if (existing != null && existing.size() >= Customer.MAX_CARDS) {
-            sendJson(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
+            JsonResponse.send(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
             return;
         } // if
 
         boolean ok = db.addCard(user, card);
-        sendJson(exchange, ok ? 201 : 500, Map.of("ok", ok));
-    } // handleCards
+        JsonResponse.send(exchange, ok ? 201 : 500, Map.of("ok", ok));
+	} // handlePostCards
 
     /**
      * Builds a lightweight {@code Customer} carrying only an email, for
@@ -543,31 +559,6 @@ public class App {
         } // if
         return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
     } // queryEmail
-
-    /**
-     * Returns a trimmed string for a JSON value, or empty if null.
-     * @param value The value.
-     * @return The trimmed string.
-     */
-    private static String str(Object value) {
-        return value == null ? "" : value.toString().trim();
-    } // str
-
-    /**
-     * Parses a JSON number into an int, or {@code -1} if invalid.
-     * @param value The value.
-     * @return The int, or {@code -1}.
-     */
-    private static int intFrom(Object value) {
-        if (value == null) {
-            return -1;
-        } // if
-        try {
-            return (int) Double.parseDouble(value.toString().trim());
-        } catch (NumberFormatException e) {
-            return -1;
-        } // try-catch
-    } // intFrom
 	
 	/**
      * Verifies a customer account using an email/code pair from the request
@@ -586,57 +577,50 @@ public class App {
 		if (method.equals("OPTIONS")) {
 			exchange.sendResponseHeaders(204, -1);
 			return;
-		} // if
-
-		if (!method.equals("POST")) {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 			return;
 		} // if
 
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
+		VerifyRequest request = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, VerifyRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handleVerify: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handleVerify: " + ioe);
 			return;
 		} // try-catch
 
-		Object emailObj = (json == null ? null : json.get("email"));
-		Object codeObj = (json == null ? null : json.get("code"));
-		String email = emailObj == null ? "" : emailObj.toString().trim();
-		String code = codeObj == null ? "" : codeObj.toString().trim();
-
-		if (email.isEmpty() || code.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "Email and verification code are required."));
-			return;
-		} // if
-
-		if (!db.userExists(email)) {
-			sendJson(exchange, 404, Map.of("error", "No account found for that email."));
-			return;
-		} // if
-
-		String storedCode = db.getVerificationCode(email);
+		String storedCode = db.getVerificationCode(request.email);
 
 		// a null/blank stored code means the account is already verified
 		if (storedCode == null || storedCode.isEmpty()) {
-			sendJson(exchange, 200, Map.of("message", "Account is already verified. You can log in."));
+			JsonResponse.send(exchange, 200, Map.of("message", "Account is already verified. You can log in."));
 			return;
 		} // if
 
-		if (!storedCode.equals(code)) {
-			sendJson(exchange, 400, Map.of("error", "Incorrect verification code."));
+		// has to be same code
+		if (!storedCode.equals(request.code)) {
+			JsonResponse.send(exchange, 400, Map.of("error", "Incorrect verification code."));
 			return;
 		} // if
 
-		if (!db.activateUser(email)) {
-			sendJson(exchange, 500, Map.of("error", "could not verify account"));
+		if (!db.activateUser(request.email)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not verify account"));
 			return;
 		} // if
 
-		sendJson(exchange, 200, Map.of("message", "Account verified. You can now log in."));
+		JsonResponse.send(exchange, 200, Map.of("message", "Account verified. You can now log in."));
     } // handleVerify
 
 	/**
@@ -658,62 +642,46 @@ public class App {
 		if (method.equals("OPTIONS")) {
 			exchange.sendResponseHeaders(204, -1);
 			return;
-		} // if
-
-		if (!method.equals("POST")) {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 			return;
-		} // if
+		} // if-else
 
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
+		UserRequest request = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, UserRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handleForgotPassword: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handleForgotPassword: " + ioe);
 			return;
 		} // try-catch
 
-		Object emailObj = (json == null ? null : json.get("email"));
-		String email = emailObj == null ? "" : emailObj.toString().trim();
+		User user = db.getUser(request.email);
 
-		if (email.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "Email is required."));
-			return;
-		} // if
+		// generate and store verification code
+		String code = generateVerificationCode();
+		long expiresAt = System.currentTimeMillis() + RESET_CODE_TTL_MILLIS;
+		db.setResetCode(request.email, code, expiresAt);
+		System.out.println("[email] Password reset code for " + request.email + ": " + code);
 
-		User user = db.getUser(email);
-		if (user != null) {
-			String code = generateVerificationCode();
-			long expiresAt = System.currentTimeMillis() + RESET_CODE_TTL_MILLIS;
-			db.setResetCode(email, code, expiresAt);
-			System.out.println("[email] Password reset code for " + email + ": " + code);
-
-			if (!sendPasswordResetEmail(user, code)) {
-				System.err.println("[email] failed to send password reset email to " + email);
-			} // if
+		if (!EmailResponse.send(EmailResponse.Template.PASSWORD_RESET, user, code)) {
+			System.err.println("[email] failed to send password reset email to " + request.email);
 		} // if
 
 		// same response regardless of whether the account exists
-		sendJson(exchange, 200,
+		JsonResponse.send(exchange, 200,
 			Map.of("message", "If an account exists for that email, a password reset code has been sent."));
     } // handleForgotPassword
-
-	/**
-	 * Checks whether a password-reset code is correct and unexpired for
-	 * the given email.
-	 * @param email The user's email address.
-	 * @param code The reset code to check.
-	 * @return {@code true} if the code matches and hasn't expired.
-	 */
-	private static boolean isResetCodeValid(String email, String code) {
-		String storedCode = db.getResetCode(email);
-		if (storedCode == null || storedCode.isEmpty() || !storedCode.equals(code)) {
-			return false;
-		} // if
-		return db.getResetCodeExpiry(email) > System.currentTimeMillis();
-	} // isResetCodeValid
 
 	/**
 	 * Confirms an email/code pair from a password-reset flow without
@@ -733,39 +701,31 @@ public class App {
 		if (method.equals("OPTIONS")) {
 			exchange.sendResponseHeaders(204, -1);
 			return;
-		} // if
-
-		if (!method.equals("POST")) {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 			return;
 		} // if
 
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
+		ResetPasswordRequest request = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, ResetPasswordRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handleVerifyResetCode: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handleVerifyResetCode: " + ioe);
 			return;
 		} // try-catch
 
-		Object emailObj = (json == null ? null : json.get("email"));
-		Object codeObj = (json == null ? null : json.get("code"));
-		String email = emailObj == null ? "" : emailObj.toString().trim();
-		String code = codeObj == null ? "" : codeObj.toString().trim();
-
-		if (email.isEmpty() || code.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "Email and reset code are required."));
-			return;
-		} // if
-
-		if (!db.userExists(email) || !isResetCodeValid(email, code)) {
-			sendJson(exchange, 400, Map.of("error", "Incorrect or expired reset code."));
-			return;
-		} // if
-
-		sendJson(exchange, 200, Map.of("message", "Code verified."));
+		JsonResponse.send(exchange, 200, Map.of("message", "Code verified."));
     } // handleVerifyResetCode
 
 	/**
@@ -786,121 +746,38 @@ public class App {
 		if (method.equals("OPTIONS")) {
 			exchange.sendResponseHeaders(204, -1);
 			return;
-		} // if
-
-		if (!method.equals("POST")) {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 			return;
 		} // if
 
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
+		NewPasswordRequest request = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, NewPasswordRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handleResetPassword: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handleResetPassword: " + ioe);
 			return;
 		} // try-catch
 
-		Object emailObj = (json == null ? null : json.get("email"));
-		Object codeObj = (json == null ? null : json.get("code"));
-		Object passwordObj = (json == null ? null : json.get("newPassword"));
-		String email = emailObj == null ? "" : emailObj.toString().trim();
-		String code = codeObj == null ? "" : codeObj.toString().trim();
-		String newPassword = passwordObj == null ? "" : passwordObj.toString();
-
-		if (email.isEmpty() || code.isEmpty() || newPassword.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "Email, code, and new password are required."));
+		// update the password
+		if (!db.updatePassword(request.email, request.newPassword)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not reset password"));
 			return;
 		} // if
 
-		if (newPassword.length() < 8) {
-			sendJson(exchange, 400, Map.of("error", "Password must be at least 8 characters."));
-			return;
-		} // if
-
-		if (!db.userExists(email) || !isResetCodeValid(email, code)) {
-			sendJson(exchange, 400, Map.of("error", "Incorrect or expired reset code."));
-			return;
-		} // if
-
-		if (!db.updatePassword(email, newPassword)) {
-			sendJson(exchange, 500, Map.of("error", "could not reset password"));
-			return;
-		} // if
-
-		sendJson(exchange, 200, Map.of("message", "Password reset. You can now log in."));
+		JsonResponse.send(exchange, 200, Map.of("message", "Password reset. You can now log in."));
     } // handleResetPassword
-
-	/**
-	 * Sends a verification email to a {@code User} POSTed to this route.
-	 * @param exchange The HTTP exchange to respond to.
-	 * @param user The user to send the email to.
-	 * @param code The user's verification code.
-	 * @throws IOException if writing the response fails
-	 */
-	private static boolean sendEmail(HttpExchange exchange, User user, String code) throws IOException {
-
-		// if the user exists
-		if (db.userExists(user.getEmail())) {
-			// send the email
-			Email email = EmailBuilder.startingBlank()
-				.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
-				.to(user.getName(), user.getEmail())
-				.withSubject("Cinema E-booking System: Your verification code")
-				.withPlainText("Hello " +
-					user.getName() + ", your verification code is: " +
-					code.toString() + ". Please use this code to finish " +
-					"setting up your account.")
-				.buildEmail();
-
-			buildMailer().sendMail(email);
-			return true;
-		} else {
-			sendJson(exchange, 500, Map.of("error", "user does not exist"));
-			return false;
-		} // if-else
-    } // sendEmail
-
-	/**
-	 * Sends a password-reset code to a user's email address.
-	 * @param user The user requesting a password reset.
-	 * @param code The reset code to send.
-	 * @return {@code true} if the email was sent, {@code false} otherwise.
-	 */
-	private static boolean sendPasswordResetEmail(User user, String code) {
-		try {
-			Email email = EmailBuilder.startingBlank()
-				.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
-				.to(user.getName(), user.getEmail())
-				.withSubject("Cinema E-booking System: Your password reset code")
-				.withPlainText("Hello " +
-					user.getName() + ", your password reset code is: " +
-					code + ". Use this code to reset your password. If you " +
-					"didn't request this, you can safely ignore this email.")
-				.buildEmail();
-
-			buildMailer().sendMail(email);
-			return true;
-		} catch (Exception e) {
-			System.err.println("sendPasswordResetEmail: " + e);
-			return false;
-		} // try-catch
-	} // sendPasswordResetEmail
-
-	/**
-	 * Builds a {@code Mailer} configured to send through the project's
-	 * Gmail account.
-	 * @return A configured {@code Mailer}.
-	 */
-	private static Mailer buildMailer() {
-		return MailerBuilder
-			// i'll actually kill you if you try and use this to get into my account
-			.withSMTPServer("smtp.gmail.com", 587, "qwertyshepherd@gmail.com", "cqbw bpvx xtpk befo")
-			.withTransportStrategy(TransportStrategy.SMTP_TLS)
-			.buildMailer();
-	} // buildMailer
 
     /**
      * Authenticates a user from an email/password pair in the request body.
@@ -919,74 +796,47 @@ public class App {
 		if (method.equals("OPTIONS")) {
 			exchange.sendResponseHeaders(204, -1);
 			return;
-		} // if
-
-		if (!method.equals("POST")) {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 			return;
 		} // if
 
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
+		LoginRequest request = null;
 
 		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+			request = GSON.fromJson(body, LoginRequest.class);
+
+			// check request
+			if (!request.check(exchange)) {
+				System.err.println("handleLogin: failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
+			return;
+		} catch (IOException ioe) {
+			System.err.println("handleLogin: " + ioe);
 			return;
 		} // try-catch
 
-		Object emailObj = (json == null ? null : json.get("email"));
-		Object passwordObj = (json == null ? null : json.get("password"));
-		String email = emailObj == null ? "" : emailObj.toString().trim();
-		String password = passwordObj == null ? "" : passwordObj.toString();
-
-		// password hashing
-		// Source - https://stackoverflow.com/a/2624385
-			try {
-				MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-				messageDigest.update(password.getBytes());
-				password = new String(messageDigest.digest());
-			} catch (NoSuchAlgorithmException nsae) {
-				System.err.println("How did we get here?");
-				sendJson(exchange, 401, Map.of("error", "Incorrect email or password."));
-				return;
-			} // try-catch
-
-		if (email.isEmpty() || password.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "Email and password are required."));
-			return;
-		} // if
-
-		// use the same generic message for unknown email and wrong password
-		// so we don't reveal which accounts exist
-		if (!db.userExists(email)) {
-			sendJson(exchange, 401, Map.of("error", "Incorrect email or password."));
-			return;
-		} // if
-
-		User user = db.getUser(email);
-
-		if (user == null || !user.getPassword().equals(password)) {
-			sendJson(exchange, 401, Map.of("error", "Incorrect email or password."));
-			return;
-		} // if
+		User user = db.getUser(request.email);
 
 		// customers must verify their account (via email) before logging in
 		if (!user.isAdmin()) {
 			Customer customer = (Customer) user;
 			if (customer.getState() == Customer.CustomerState.INACTIVE) {
-				sendJson(exchange, 403, Map.of("error",
+				JsonResponse.send(exchange, 403, Map.of("error",
 					"Account is not verified. Please check your email to verify your account."));
 				return;
 			} // if
 			if (customer.getState() == Customer.CustomerState.SUSPENDED) {
-				sendJson(exchange, 403, Map.of("error", "This account has been suspended."));
+				JsonResponse.send(exchange, 403, Map.of("error", "This account has been suspended."));
 				return;
 			} // if
 		} // if
 
-		sendJson(exchange, 200, user);
+		JsonResponse.send(exchange, 200, user);
     } // handleLogin
 
     /**
@@ -996,21 +846,4 @@ public class App {
     private static String generateVerificationCode() {
 		return String.format("%06d", RANDOM.nextInt(1_000_000));
     } // generateVerificationCode
-
-    /**
-     * Writes a JSON response with the given status code.
-     * @param exchange The HTTP exchange to respond to.
-     * @param status The HTTP status code.
-     * @param payload The object to serialize as JSON.
-     * @throws IOException if writing the response fails.
-     */
-    private static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
-		byte[] bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
-		exchange.getResponseHeaders().add("Content-Type", "application/json");
-		exchange.sendResponseHeaders(status, bytes.length);
-
-		try (OutputStream os = exchange.getResponseBody()) {
-			os.write(bytes);
-		} // try
-    } // sendJson
 } // App

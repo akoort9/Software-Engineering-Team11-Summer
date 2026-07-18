@@ -137,5 +137,4 @@ class Seed {
 			"123 Nouveau Riche Ln, Marietta GA 30006",
 			2028, 4)
 	};
-
 } // Seeder

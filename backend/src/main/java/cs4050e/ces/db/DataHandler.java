@@ -242,6 +242,37 @@ public class DataHandler {
 	} // getMovie
 
 	/**
+	 * Returns a movie from the database with the given title.
+	 * @param title
+	 * @return A {@code Movie} object or {@code null} if it does not exist.
+	 */
+	public Movie getMovie(int id) {
+		String sql = "SELECT * FROM movies WHERE id = " + id;
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {			
+			Movie movie = null;
+			while (rs.next()) {
+				movie = new Movie(
+		    		rs.getString("title"),
+		    		rs.getString("genre"),
+		    		rs.getString("desc"),
+				    rs.getString("poster"),
+				    rs.getString("trailer"),
+				    rs.getInt("rating"),
+		    		rs.getBoolean("status")
+				);
+				movie.setId(rs.getInt("id"));
+			} // while
+
+			rs.close();
+			return movie;
+		} catch (SQLException sqle) {
+			System.err.println("getMovie: " + sqle);
+		    return null;
+		} // try-catch
+	} // getMovie
+
+	/**
 	 * Adds a {@code User} to the database.
 	 * @param user The user to add.
 	 * @return {@code true} if successful, {@code false} otherwise.
@@ -844,7 +875,7 @@ public class DataHandler {
      * @param plaintext The string to hash.
      * @return The hashed {@code String}.
      */
-    private String hashPassword(String plaintext) {
+    public String hashPassword(String plaintext) {
         try {
             messageDigest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException nsae) {
@@ -894,13 +925,13 @@ public class DataHandler {
 		} // if
 
 		// seeds movies
-		for (int i = 0; i < Seed.movies.length; i++) {
-			this.addMovie(Seed.movies[i]);
+		for (Movie movie : Seed.movies) {
+			this.addMovie(movie); 
 		} // for
 
 		// seeds users
-		for (int i = 0; i < Seed.users.length; i++) {
-			this.addUser(Seed.users[i]);
+		for (User user : Seed.users) {
+			this.addUser(user);
 		} // for
 
 		// seed fav movie
