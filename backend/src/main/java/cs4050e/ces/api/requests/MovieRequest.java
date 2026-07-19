@@ -8,7 +8,7 @@ import com.sun.net.httpserver.HttpExchange;
 import cs4050e.ces.api.responses.JsonResponse;
 
 /** Represents a request for a movie from the frontend. */
-public class MovieRequest {
+public class MovieRequest implements Request {
     /** The title of the movie this request is for. */
     public String title;
 

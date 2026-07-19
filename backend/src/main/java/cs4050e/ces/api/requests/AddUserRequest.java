@@ -27,7 +27,8 @@ public class AddUserRequest extends UpdateUserRequest {
      * @return {@code true} if valid, {@code false} otherwise.
      */
     public boolean check(HttpExchange exchange) throws IOException {
-        if (!super.check(exchange)) {
+        if (email.isEmpty()) {
+            JsonResponse.send(exchange, 400, Map.of("error", "email is required"));
             return false;
         } else if (this.password.isEmpty()) {
             JsonResponse.send(exchange, 400, Map.of("error", "email and password are required"));

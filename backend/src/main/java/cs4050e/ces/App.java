@@ -123,24 +123,9 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostMovie(HttpExchange exchange) throws IOException {
-		MovieRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, MovieRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handlePostMovie: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handlePostMovie: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		MovieRequest request = GSON.fromJson(getBody(exchange), MovieRequest.class);
+		checkRequest(exchange, request);
 
 		// only the title comes from the user right now; everything else defaults to empty
 		Movie movie = new Movie(request.title, "", "", "", "", 0, false);
@@ -151,6 +136,7 @@ public class App {
 			return;
 		} // if
 
+		System.err.println("We get here.");
 		JsonResponse.send(exchange, 201, movie);
     } // handlePostMovie
 
@@ -209,25 +195,10 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostUser(HttpExchange exchange) throws IOException {
-		AddUserRequest request = null;
+		// handle request
+		AddUserRequest request = GSON.fromJson(getBody(exchange), AddUserRequest.class);
+		checkRequest(exchange, request);
 		User user = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, AddUserRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handlePostUser: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handlePostUser: " + ioe);
-			return;
-		} // try-catch
 
 		// making appropriate objects
 		if (request.isAdmin) {
@@ -279,24 +250,9 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleUpdateUser(HttpExchange exchange) throws IOException {
-		UpdateUserRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, UpdateUserRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handleUpdateUser: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handleUpdateUser: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		UpdateUserRequest request = GSON.fromJson(getBody(exchange), UpdateUserRequest.class);
+		checkRequest(exchange, request);
         
         Customer updated = new Customer(
             request.name,
@@ -371,24 +327,9 @@ public class App {
      * @throws IOException if writing the response fails.
      */
 	private static void handlePostFavorites(HttpExchange exchange) throws IOException {
-		FavoriteMovieRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, FavoriteMovieRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handlePostFavorites: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handlePostFavorites: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		FavoriteMovieRequest request = GSON.fromJson(getBody(exchange), FavoriteMovieRequest.class);
+		checkRequest(exchange, request);
 
 		User user = db.getUser(request.email);
         Movie movie = db.getMovie(request.movieId);
@@ -474,38 +415,19 @@ public class App {
 		String method = exchange.getRequestMethod();
 		UpdateCardRequest request = null;
 
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+		String body = getBody(exchange);
 
-			// DELETE sends a simple CardRequest
-			if (method.equals("DELETE")) {
-				CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
-				// check request
-				if (!deleteRequest.check(exchange)) {
-					System.err.println("handlePostCards: failed request.");
-					return;
-				} else {
-					boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
-            		JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
-            		return;
-				} // else
-			// POST or PUT sends an UpdateCardRequest
-			} else {
-				request = GSON.fromJson(body, UpdateCardRequest.class);
-			} // if-else
-			
-			// check POST or PUT request
-			if (!request.check(exchange)) {
-				System.err.println("handlePostCards: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handlePostCards: " + ioe);
-			return;
-		} // try-catch
+		// DELETE sends a simple CardRequest
+		if (method.equals("DELETE")) {
+			CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
+			checkRequest(exchange, deleteRequest);
+			boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
+            JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
+            return;
+		} else {
+			request = GSON.fromJson(body, UpdateCardRequest.class);
+			checkRequest(exchange, request);
+		} // if-else
 
 		User user = db.getUser(request.email);
 
@@ -582,24 +504,9 @@ public class App {
 			return;
 		} // if
 
-		VerifyRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, VerifyRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handleVerify: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handleVerify: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		VerifyRequest request = GSON.fromJson(getBody(exchange), VerifyRequest.class);
+		checkRequest(exchange, request);
 
 		String storedCode = db.getVerificationCode(request.email);
 
@@ -647,24 +554,9 @@ public class App {
 			return;
 		} // if-else
 
-		UserRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, UserRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handleForgotPassword: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handleForgotPassword: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		UserRequest request = GSON.fromJson(getBody(exchange), UserRequest.class);
+		checkRequest(exchange, request);
 
 		User user = db.getUser(request.email);
 
@@ -706,24 +598,9 @@ public class App {
 			return;
 		} // if
 
-		ResetPasswordRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, ResetPasswordRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handleVerifyResetCode: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handleVerifyResetCode: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		VerifyRequest request = GSON.fromJson(getBody(exchange), VerifyRequest.class);
+		checkRequest(exchange, request);
 
 		JsonResponse.send(exchange, 200, Map.of("message", "Code verified."));
     } // handleVerifyResetCode
@@ -751,24 +628,9 @@ public class App {
 			return;
 		} // if
 
-		NewPasswordRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, NewPasswordRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handleResetPassword: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handleResetPassword: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		NewPasswordRequest request = GSON.fromJson(getBody(exchange), NewPasswordRequest.class);
+		checkRequest(exchange, request);
 
 		// update the password
 		if (!db.updatePassword(request.email, request.newPassword)) {
@@ -801,24 +663,9 @@ public class App {
 			return;
 		} // if
 
-		LoginRequest request = null;
-
-		try {
-			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-			request = GSON.fromJson(body, LoginRequest.class);
-
-			// check request
-			if (!request.check(exchange)) {
-				System.err.println("handleLogin: failed request.");
-				return;
-			} // if
-		} catch (JsonSyntaxException jse) {
-			JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} catch (IOException ioe) {
-			System.err.println("handleLogin: " + ioe);
-			return;
-		} // try-catch
+		// handle request
+		LoginRequest request = GSON.fromJson(getBody(exchange), LoginRequest.class);
+		checkRequest(exchange, request);
 
 		User user = db.getUser(request.email);
 
@@ -838,6 +685,51 @@ public class App {
 
 		JsonResponse.send(exchange, 200, user);
     } // handleLogin
+
+	/**
+	 * Checks a {@code Request} from the frontend.
+	 * @param T The type of the request.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @return the request if successful, {@code null} otherwise.
+	 */
+	private static void checkRequest(HttpExchange exchange, Request request) {
+		try {
+			if (!request.check(exchange)) {
+				System.err.println(getCallerMethodName() + ": failed request.");
+				return;
+			} // if
+		} catch (JsonSyntaxException jse) {
+			try { JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON")); }
+			catch (IOException ioe) { System.err.println(getCallerMethodName() + ": failed to send error."); }
+			return;
+		} catch (IOException ioe) {
+			System.err.println(getCallerMethodName() + ": " + ioe);
+			return;
+		} // try-catch
+	} // checkUserRequest
+
+	/**
+	 * Source - https://stackoverflow.com/a/68674306
+	 * Posted by Nathan
+	 * Retrieved 2026-07-19, License - CC BY-SA 4.0
+	 * Returns the name of the calling method.
+	 * @return caller method name. 
+	 */
+	private static String getCallerMethodName() {
+		return StackWalker.
+			getInstance().
+			walk(stream -> stream.skip(2).findFirst().get()).
+			getMethodName();
+	} // getCallerMethodName
+
+	/**
+	 * Gets the body of the {@code HttpExchange}.
+	 * @param exchange The HTTP exchange.
+	 * @return The body of the exchange.
+	 */
+	private static String getBody(HttpExchange exchange) throws IOException {
+		return new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+	} // getBody
 
     /**
      * Generates a random 6-digit verification code.

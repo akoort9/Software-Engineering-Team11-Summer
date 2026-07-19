@@ -12,7 +12,7 @@ import cs4050e.ces.db.DataHandler;
 /** Represents a generic request about a {@code User}
  * from the frontend.
  */
-public class UserRequest {
+public class UserRequest implements Request {
     /** Database access point. */
     protected static final DataHandler db = DataHandler.getInstance();
 
