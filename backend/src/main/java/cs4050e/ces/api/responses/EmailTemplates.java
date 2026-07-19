@@ -37,7 +37,7 @@ public class EmailTemplates {
      */
     static Email getPasswordResetEmail(User user, String code) {
         return EmailBuilder.startingBlank()
-			.from("Cinema E-booking System", "qwertyshepherd@gmail.com")
+			.from(CES_NAME, CES_FROM_ADDRESS)
 			.to(user.getName(), user.getEmail())
 			.withSubject("Cinema E-booking System: Your password reset code")
 			.withPlainText("Hello " + user.getName() + ", your password reset code is: " +
