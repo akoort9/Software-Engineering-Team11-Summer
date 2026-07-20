@@ -76,6 +76,7 @@ export default function LoginPage() {
 
         <p className="auth-switch">
           Don&apos;t have an account? <Link to="/register">Register</Link>
+          <p>Not verified? <Link to="/verify?email=">Verify account</Link></p>
         </p>
       </div>
     </main>

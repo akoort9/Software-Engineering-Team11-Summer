@@ -23,7 +23,7 @@ public class VerifyRequest extends UserRequest {
         } else if (this.code.isEmpty()) {
             JsonResponse.send(exchange, 400, Map.of("error", "Email and verification code are required."));
 			return false;
-        } else if (!isResetCodeValid()){
+        } else if (!isVerificationCodeValid(exchange)){
             return false;
         } else {
             return true;
@@ -31,17 +31,20 @@ public class VerifyRequest extends UserRequest {
     } // check
 
      /**
-	 * Checks whether a password-reset code is correct and unexpired for
+	 * Checks whether a verification code is correct and unexpired for
 	 * the given request.
 	 * @return {@code true} if the code matches and hasn't expired.
 	 */
-	protected boolean isResetCodeValid() {
-		String storedCode = db.getResetCode(this.email);
-		if (storedCode == null || 
-			storedCode.isEmpty() || 
-			!storedCode.equals(this.code)) {
+	private boolean isVerificationCodeValid(HttpExchange exchange) throws IOException {
+		String storedCode = db.getVerificationCode(this.email);
+		if (storedCode == null || storedCode.isEmpty()) {
+            JsonResponse.send(exchange, 200, Map.of("message", "Account is already verified. You can log in."));
+			return true;
+        } else if (!storedCode.equals(this.code)) {
+			JsonResponse.send(exchange, 400, Map.of("error", "Incorrect verification code."));
 			return false;
-		} // if
-		return db.getResetCodeExpiry(this.email) > System.currentTimeMillis();
+		} else {
+            return true;
+        } // if-else
 	} // isResetCodeValid
 } // VerifyRequest

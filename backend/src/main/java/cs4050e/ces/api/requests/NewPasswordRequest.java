@@ -8,12 +8,12 @@ import com.sun.net.httpserver.HttpExchange;
 import cs4050e.ces.api.responses.JsonResponse;
 
 /** Represents a new password request from the frontend. */
-public class NewPasswordRequest extends VerifyRequest {
+public class NewPasswordRequest extends VerifyResetRequest {
     /** The new account password. */
     public String newPassword;
 
     /**
-     * Checks if a {@code ResetPasswordRequest} is valid.
+     * Checks if a {@code NewPasswordRequest} is valid.
      * @param exchange The exchange to send error codes to.
      * @return {@code true} if valid, {@code false} otherwise.
      */

@@ -125,7 +125,7 @@ public class App {
     private static void handlePostMovie(HttpExchange exchange) throws IOException {
 		// handle request
 		MovieRequest request = GSON.fromJson(getBody(exchange), MovieRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		// only the title comes from the user right now; everything else defaults to empty
 		Movie movie = new Movie(request.title, "", "", "", "", 0, false);
@@ -197,7 +197,7 @@ public class App {
     private static void handlePostUser(HttpExchange exchange) throws IOException {
 		// handle request
 		AddUserRequest request = GSON.fromJson(getBody(exchange), AddUserRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
 		User user = null;
 
 		// making appropriate objects
@@ -252,7 +252,7 @@ public class App {
     private static void handleUpdateUser(HttpExchange exchange) throws IOException {
 		// handle request
 		UpdateUserRequest request = GSON.fromJson(getBody(exchange), UpdateUserRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
         
         Customer updated = new Customer(
             request.name,
@@ -329,7 +329,7 @@ public class App {
 	private static void handlePostFavorites(HttpExchange exchange) throws IOException {
 		// handle request
 		FavoriteMovieRequest request = GSON.fromJson(getBody(exchange), FavoriteMovieRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		User user = db.getUser(request.email);
         Movie movie = db.getMovie(request.movieId);
@@ -420,13 +420,13 @@ public class App {
 		// DELETE sends a simple CardRequest
 		if (method.equals("DELETE")) {
 			CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
-			checkRequest(exchange, deleteRequest);
+			if (!checkRequest(exchange, request)) { return; } // if
 			boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
             JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
             return;
 		} else {
 			request = GSON.fromJson(body, UpdateCardRequest.class);
-			checkRequest(exchange, request);
+			if (!checkRequest(exchange, request)) { return; } // if
 		} // if-else
 
 		User user = db.getUser(request.email);
@@ -506,21 +506,7 @@ public class App {
 
 		// handle request
 		VerifyRequest request = GSON.fromJson(getBody(exchange), VerifyRequest.class);
-		checkRequest(exchange, request);
-
-		String storedCode = db.getVerificationCode(request.email);
-
-		// a null/blank stored code means the account is already verified
-		if (storedCode == null || storedCode.isEmpty()) {
-			JsonResponse.send(exchange, 200, Map.of("message", "Account is already verified. You can log in."));
-			return;
-		} // if
-
-		// has to be same code
-		if (!storedCode.equals(request.code)) {
-			JsonResponse.send(exchange, 400, Map.of("error", "Incorrect verification code."));
-			return;
-		} // if
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		if (!db.activateUser(request.email)) {
 			JsonResponse.send(exchange, 500, Map.of("error", "could not verify account"));
@@ -556,7 +542,7 @@ public class App {
 
 		// handle request
 		UserRequest request = GSON.fromJson(getBody(exchange), UserRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		User user = db.getUser(request.email);
 
@@ -599,8 +585,8 @@ public class App {
 		} // if
 
 		// handle request
-		VerifyRequest request = GSON.fromJson(getBody(exchange), VerifyRequest.class);
-		checkRequest(exchange, request);
+		VerifyResetRequest request = GSON.fromJson(getBody(exchange), VerifyResetRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		JsonResponse.send(exchange, 200, Map.of("message", "Code verified."));
     } // handleVerifyResetCode
@@ -630,7 +616,7 @@ public class App {
 
 		// handle request
 		NewPasswordRequest request = GSON.fromJson(getBody(exchange), NewPasswordRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		// update the password
 		if (!db.updatePassword(request.email, request.newPassword)) {
@@ -665,7 +651,7 @@ public class App {
 
 		// handle request
 		LoginRequest request = GSON.fromJson(getBody(exchange), LoginRequest.class);
-		checkRequest(exchange, request);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		User user = db.getUser(request.email);
 
@@ -688,23 +674,25 @@ public class App {
 
 	/**
 	 * Checks a {@code Request} from the frontend.
-	 * @param T The type of the request.
+	 * @param request The request.
 	 * @param exchange The HTTP exchange to respond to.
-	 * @return the request if successful, {@code null} otherwise.
+	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
-	private static void checkRequest(HttpExchange exchange, Request request) {
+	private static boolean checkRequest(HttpExchange exchange, Request request) {
 		try {
 			if (!request.check(exchange)) {
 				System.err.println(getCallerMethodName() + ": failed request.");
-				return;
-			} // if
+				return false;
+			} else {
+				return true;
+			}// if-else
 		} catch (JsonSyntaxException jse) {
 			try { JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON")); }
 			catch (IOException ioe) { System.err.println(getCallerMethodName() + ": failed to send error."); }
-			return;
+			return false;
 		} catch (IOException ioe) {
 			System.err.println(getCallerMethodName() + ": " + ioe);
-			return;
+			return false;
 		} // try-catch
 	} // checkUserRequest
 
