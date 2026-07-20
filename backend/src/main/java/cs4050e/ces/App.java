@@ -420,7 +420,7 @@ public class App {
 		// DELETE sends a simple CardRequest
 		if (method.equals("DELETE")) {
 			CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
-			if (!checkRequest(exchange, request)) { return; } // if
+			if (!checkRequest(exchange, deleteRequest)) { return; } // if
 			boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
             JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
             return;
