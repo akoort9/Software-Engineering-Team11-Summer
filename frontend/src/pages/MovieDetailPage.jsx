@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchMovie } from '../api/movies.js'
-import { addFavorite } from '../api/users.js'
 import { statusLabel } from '../utils/statusLabel.js'
 import { embedUrl } from '../utils/youtube.js'
 import { getShowtimes } from '../utils/showtimes.js'
+import { useFavorites } from '../hooks/useFavorites.js'
+import FavoriteStar from '../components/FavoriteStar.jsx'
 import '../App.css'
 
 export default function MovieDetailPage() {
@@ -12,17 +13,7 @@ export default function MovieDetailPage() {
   const [movie, setMovie] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [favMessage, setFavMessage] = useState('')
-
-  const handleFavorite = async () => {
-    setFavMessage('')
-    try {
-      await addFavorite(movie.id)
-      setFavMessage('Added to your favorites.')
-    } catch {
-      setFavMessage('Could not add to favorites.')
-    }
-  }
+  const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
 
   useEffect(() => {
     fetchMovie(id)
@@ -55,23 +46,21 @@ export default function MovieDetailPage() {
         )}
 
         <div className="detail-info">
-          <h1>{movie.title}</h1>
+          <div className="detail-title-row">
+            <h1>{movie.title}</h1>
+            {canFavorite && (
+              <FavoriteStar
+                favorited={isFavorited(movie.id)}
+                onClick={() => toggleFavorite(movie.id)}
+              />
+            )}
+          </div>
           <p className="detail-meta">
             <span className="badge">{statusLabel(movie.status)}</span>
             {movie.genre && <span className="badge">{movie.genre}</span>}
             <span className="badge">{movie.rating}/10</span>
           </p>
           <p className="detail-desc">{movie.desc}</p>
-
-          <button
-            type="button"
-            className="favorite-button"
-            onClick={handleFavorite}
-            title="Add this movie to your favorites"
-          >
-            {'♥'} Add to Favorites
-          </button>
-          {favMessage && <p className="favorite-message">{favMessage}</p>}
 
           <h2>Showtimes</h2>
           {showtimes.length > 0 ? (

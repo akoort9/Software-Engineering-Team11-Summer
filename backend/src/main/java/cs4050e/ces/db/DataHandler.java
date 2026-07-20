@@ -7,6 +7,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.io.File;
+import java.io.IOException;
 
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.theatre.Movie;
@@ -27,13 +31,23 @@ public class DataHandler {
 	/** Connection to the database. */
 	private Connection conn = null;
 
+	/** Singleton object to hash passwords. */
+	private static MessageDigest messageDigest;
+
 	/** Singleton constructor. */
 	private DataHandler() {
 		try {
+			// create db file if it doesn't exist
+			if (!new File(DB_PATH).isFile()) {
+				new File(DB_PATH).createNewFile();
+			} // if			
 			this.conn = connect(DB_PATH);
 		} catch (SQLException sqle) {
 			System.err.println("connect: " + sqle);
-		} // try-catch				
+			return;
+		} catch (IOException ioe) {
+			System.err.println("connect: " + ioe);	
+		} // try-catch	
 	} // DataHandler
 
 	/**
@@ -79,11 +93,47 @@ public class DataHandler {
 				stmt.execute(Schema.PAYMENT_METHODS_TABLE);
 			} // try
 
+			// keep older database files compatible with newer columns
+			ensureColumn(conn, "users", "subscribed_to_promotions", "INTEGER");
+			ensureColumn(conn, "users", "verification_code", "TEXT");
+			ensureColumn(conn, "users", "reset_code", "TEXT");
+			ensureColumn(conn, "users", "reset_code_expires", "TEXT");
+
 	    	return conn;
 		} catch (ReflectiveOperationException roe) {
 	    	throw new SQLException("sqlite-jdbc driver not found on classpath", roe);
 		} // try-catch
     } // connect
+
+    /**
+     * Adds a column to a table if it does not already exist, so database
+     * files created before a schema change stay usable.
+     * @param conn an open database connection.
+     * @param table the table to check.
+     * @param column the column that should exist.
+     * @param type the SQL type of the column.
+     */
+    private void ensureColumn(Connection conn, String table, String column, String type) {
+		// check whether the column already exists
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+			while (rs.next()) {
+				if (column.equals(rs.getString("name"))) {
+					return; // already present, nothing to do
+				} // if
+			} // while
+		} catch (SQLException sqle) {
+			System.err.println("ensureColumn(check): " + sqle);
+			return;
+		} // try-catch
+
+		// column is missing, so add it
+		try (Statement stmt = conn.createStatement()) {
+			stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+		} catch (SQLException sqle) {
+			System.err.println("ensureColumn(alter): " + sqle);
+		} // try-catch
+    } // ensureColumn
 
     /**
      * Adds a movie to the provided database.
@@ -192,6 +242,37 @@ public class DataHandler {
 	} // getMovie
 
 	/**
+	 * Returns a movie from the database with the given title.
+	 * @param title
+	 * @return A {@code Movie} object or {@code null} if it does not exist.
+	 */
+	public Movie getMovie(int id) {
+		String sql = "SELECT * FROM movies WHERE id = " + id;
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {			
+			Movie movie = null;
+			while (rs.next()) {
+				movie = new Movie(
+		    		rs.getString("title"),
+		    		rs.getString("genre"),
+		    		rs.getString("desc"),
+				    rs.getString("poster"),
+				    rs.getString("trailer"),
+				    rs.getInt("rating"),
+		    		rs.getBoolean("status")
+				);
+				movie.setId(rs.getInt("id"));
+			} // while
+
+			rs.close();
+			return movie;
+		} catch (SQLException sqle) {
+			System.err.println("getMovie: " + sqle);
+		    return null;
+		} // try-catch
+	} // getMovie
+
+	/**
 	 * Adds a {@code User} to the database.
 	 * @param user The user to add.
 	 * @return {@code true} if successful, {@code false} otherwise.
@@ -202,7 +283,7 @@ public class DataHandler {
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 	    	stmt.setString(1, user.getName());
 			stmt.setString(3, user.getEmail());
-		    stmt.setString(4, user.getPassword());
+			stmt.setString(4, hashPassword(user.getPassword()));
 
 			if (user.isAdmin()) {
 				// user is an admin
@@ -210,6 +291,7 @@ public class DataHandler {
 				stmt.setString(5, "admin");
 				stmt.setString(6, "");
 				stmt.setString(7, "ACTIVE");
+				stmt.setInt(8, 0);
 			} else {
 				// user is a customer
 				Customer customer = (Customer) user;
@@ -217,6 +299,7 @@ public class DataHandler {
 				stmt.setString(5, "customer");
 				stmt.setString(6, customer.getMailingAddress());
 				stmt.setString(7, customer.getState().toString());
+				stmt.setInt(8, customer.isSubscribedToPromotions() ? 1 : 0);
 			} // if-else
 	    
 		    stmt.executeUpdate();
@@ -258,7 +341,7 @@ public class DataHandler {
 					);
 				} else {
 					// user is a customer
-					user = new Customer(
+					Customer customer = new Customer(
 						rs.getString("first_name"),
 						rs.getString("email_address"),
 						rs.getString("password_hash"),
@@ -266,6 +349,8 @@ public class DataHandler {
 						rs.getString("mailing_address"),
 						rs.getString("state")
 					);
+					customer.setSubscribedToPromotions(rs.getInt("subscribed_to_promotions") == 1);
+					user = customer;
 				} // if-else
 				user.setId(rs.getInt("id"));
 			} // while
@@ -278,21 +363,43 @@ public class DataHandler {
 		} // try-catch
 	} // getUser
 
+	/**
+	 * Updates a user in the database with a given {@code User}'s 
+	 * mutable information. The given {@code User} object must share
+	 * the email address of the user you wish to update.
+	 * @param user The user 
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean updateUser(User user) {
-		String sql = null;
+		String sql;
+		User dbUser;
+
+		// error and sanity checking
+		try {
+			dbUser = getUser(user.getEmail());
+			if (dbUser.isAdmin() ^ user.isAdmin()) {
+				// cannot update user to a different role
+				return false;
+			} // if
+		} catch (NullPointerException npe) {
+			System.err.println("updateUser: " + npe);
+			return false;
+		} // try-catch
 
 		// update user info according to role
-		if (user.isAdmin()) {
+		int userId = resolveUserId(user);
+		if (dbUser.isAdmin()) {
 			sql = "UPDATE users SET first_name = '" + user.getName() +
-			"' WHERE id = " + user.getId();
+			"' WHERE id = " + userId;
 		} else {
 			Customer customer = (Customer) user;
 			sql = "UPDATE users SET first_name = '" + user.getName() +
 			"', last_name = '" + customer.getLastName() + 
 			"', mailing_address = '" + customer.getMailingAddress() + "' " +
-			"WHERE id = " + user.getId();
+			"WHERE id = " + userId;
 		} // if
 
+		// run SQL
 		try (Statement stmt = conn.createStatement()) {
 			stmt.executeUpdate(sql);
 			return true;
@@ -302,21 +409,25 @@ public class DataHandler {
 		} // try-catch
 	} // updateUser
 
+	/**
+	 * Adds a given {@code Movie} to a given {@code User}'s
+	 * favorite movie list in the database.
+	 * @param user The user who favorited the movie.
+	 * @param movie The movie to favorite.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean addFavoriteMovie(User user, Movie movie) {
+		int userId = resolveUserId(user);
+		int movieId = resolveMovieId(movie);
+		if (userId == -1 || movieId == -1) {
+			return false;
+		} // if
+
+		// run SQL
 		String sql = Schema.ADD_FAVORITE_MOVIE;
-
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			// check for valid IDs, if not grab objects from DB
-			if (user.getId() == -1 || movie.getId() == -1) {
-				User dbUser = getUser(user.getEmail());
-				Movie dbMovie = getMovie(movie.getTitle());
-				stmt.setInt(1, dbUser.getId());
-				stmt.setInt(2, dbMovie.getId());
-			} else {
-				stmt.setInt(1, user.getId());
-				stmt.setInt(2, movie.getId());
-			} // if-else
-
+			stmt.setInt(1, userId);
+			stmt.setInt(2, movieId);
 			stmt.executeUpdate();
 			return true;			
 		} catch (SQLException sqle) {
@@ -325,6 +436,13 @@ public class DataHandler {
 		} // try-catch
 	} // addFavoriteMovie
 
+	/**
+	 * Removes a {@code Movie} from a given {@code User}'s
+	 * favorite movie list.
+	 * @param user The user who favorited the movie.
+	 * @param movie The movie to remove.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean removeFavoriteMovie(User user, Movie movie) {
 		int userId = resolveUserId(user);
 		int movieId = resolveMovieId(movie);
@@ -332,8 +450,8 @@ public class DataHandler {
 			return false;
 		} // if
 
-		String sql = "DELETE FROM favorite_movies WHERE user_id = ? AND movie_id = ?";
-
+		// run SQL
+		String sql = Schema.REMOVE_FAVORITE_MOVIE;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt(1, userId);
 			stmt.setInt(2, movieId);
@@ -345,17 +463,24 @@ public class DataHandler {
 		} // try-catch
 	} // removeFavoriteMovie
 
+	/**
+	 * Grabs a given {@code User}'s favorite movies from the database.
+	 * @param user The user
+	 * @return A {@code List<Movie>} of all the {@code User}'s
+	 * favorite movies.
+	 */
 	public List<Movie> getFavoriteMovies(User user) {
 		int userId = resolveUserId(user);
 		if (userId == -1) {
 			return null;
 		} // if
 
-		String sql = "SELECT movies.* FROM movies "
-			+ "JOIN favorite_movies ON favorite_movies.movie_id = movies.id "
-			+ "WHERE favorite_movies.user_id = " + userId;
 		List<Movie> movies = new ArrayList<Movie>();
 
+		// run SQL
+		String sql = "SELECT movies.* FROM movies " +
+			"JOIN favorite_movies ON favorite_movies.movie_id = movies.id " +
+			"WHERE favorite_movies.user_id = " + userId;
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 			while (rs.next()) {
@@ -380,15 +505,28 @@ public class DataHandler {
 		} // try-catch
 	} // getFavoriteMovies
 
+	/**
+	 * Add a {@code Card} to the database for a given {@code User}.
+	 * @param user The user
+	 * @param card The card
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
 	public boolean addCard(User user, Card card) {
 		int userId = resolveUserId(user);
 		if (userId == -1) {
 			return false;
 		} // if
+		
+		// encrypt card before entry
+		try {
+			card = KeyHandler.encryptCard(card);
+		} catch (Exception e) {
+			System.err.println("encryptCard: " + e);
+			return false;
+		} // try-catch	
 
-		String sql = "INSERT INTO payment_methods (user_id, card_number, "
-			+ "billing_address, expiration_date) VALUES (?, ?, ?, ?)";
-
+		// run SQL
+		String sql = Schema.ADD_CARD;
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt(1, userId);
 			stmt.setString(2, card.getCardNumber());
@@ -402,32 +540,45 @@ public class DataHandler {
 		} // try-catch
 	} // addCard
 
+	/**
+	 * Returns a given {@code User}'s stored {@code Card}'s.
+	 * @param user The user
+	 * @return A {@code List<Card>} of all the {@code User}'s {@code Card}'s.
+	 */
 	public List<Card> getCards(User user) {
 		int userId = resolveUserId(user);
 		if (userId == -1) {
 			return null;
 		} // if
 
-		String sql = "SELECT * FROM payment_methods WHERE user_id = " + userId;
 		List<Card> cards = new ArrayList<Card>();
 
+		// run SQL
+		String sql = "SELECT * FROM payment_methods WHERE user_id = " + userId;
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 			while (rs.next()) {
-				String exp = rs.getString("expiration_date");
-				int year = 2000;
-				int month = 1;
-				if (exp != null && exp.contains("-")) {
-					String[] parts = exp.split("-");
-					year = Integer.parseInt(parts[0]);
-					month = Integer.parseInt(parts[1]);
-				} // if
-				cards.add(new Card(
-					rs.getString("card_number"),
-					rs.getString("billing_address"),
-					year,
-					month
-				));
+				try {
+					String exp = rs.getString("expiration_date");
+					int year = 2000;
+					int month = 1;
+					if (exp != null && exp.contains("-")) {
+						String[] parts = exp.split("-");
+						year = Integer.parseInt(parts[0]);
+						month = Integer.parseInt(parts[1]);
+					} // if
+					Card card = KeyHandler.decryptCard(new Card(
+						rs.getString("card_number"),
+						rs.getString("billing_address"),
+						year,
+						month
+					));
+					card.setId(rs.getInt("id"));
+					cards.add(card);
+				} catch (Exception e) {
+					// skip a card that can't be decrypted (e.g. stored with an old key)
+					System.err.println("getCards (skipping card): " + e);
+				} // try-catch
 			} // while
 
 			rs.close();
@@ -439,12 +590,75 @@ public class DataHandler {
 	} // getCards
 
 	/**
+	 * Removes a {@code Card} belonging to the given {@code User}.
+	 * @param user The card's owner.
+	 * @param cardId The id of the card to remove.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean removeCard(User user, int cardId) {
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return false;
+		} // if
+
+		String sql = "DELETE FROM payment_methods WHERE id = ? AND user_id = ?";
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, cardId);
+			stmt.setInt(2, userId);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("removeCard: " + sqle);
+			return false;
+		} // try-catch
+	} // removeCard
+
+	/**
+	 * Updates a {@code Card} belonging to the given {@code User}.
+	 * @param user The card's owner.
+	 * @param cardId The id of the card to update.
+	 * @param card The new card details.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean updateCard(User user, int cardId, Card card) {
+		int userId = resolveUserId(user);
+		if (userId == -1) {
+			return false;
+		} // if
+
+		// encrypt card before entry
+		try {
+			card = KeyHandler.encryptCard(card);
+		} catch (Exception e) {
+			System.err.println("encryptCard: " + e);
+			return false;
+		} // try-catch
+
+		String sql = "UPDATE payment_methods SET card_number = ?, billing_address = ?, "
+			+ "expiration_date = ? WHERE id = ? AND user_id = ?";
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, card.getCardNumber());
+			stmt.setString(2, card.getBillingAddress());
+			stmt.setString(3, card.getExpirationDate().toString());
+			stmt.setInt(4, cardId);
+			stmt.setInt(5, userId);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("updateCard: " + sqle);
+			return false;
+		} // try-catch
+	} // updateCard
+
+	/**
 	 * Resolves a {@code User}'s database id, looking it up by email if unset.
 	 * @param user The user.
 	 * @return The database id, or {@code -1} if not found.
 	 */
 	private int resolveUserId(User user) {
-		if (user.getId() != -1) {
+		if (user == null) {
+			return -1;
+		} else if (user.getId() != -1) {
 			return user.getId();
 		} // if
 		User dbUser = getUser(user.getEmail());
@@ -457,7 +671,9 @@ public class DataHandler {
 	 * @return The database id, or {@code -1} if not found.
 	 */
 	private int resolveMovieId(Movie movie) {
-		if (movie.getId() != -1) {
+		if (movie == null) {
+			return -1;
+		} else if (movie.getId() != -1) {
 			return movie.getId();
 		} // if
 		Movie dbMovie = getMovie(movie.getTitle());
@@ -475,7 +691,6 @@ public class DataHandler {
 		try (Statement stmt = conn.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 				while (rs.next()) {
-					System.out.println("in the while...");
 					if (rs.getString("email_address").equals(email)) {
 						return true;
 					} // if
@@ -486,6 +701,192 @@ public class DataHandler {
 			return false;
 		} // try-catch
     } // exists
+
+	/**
+	 * Stores an email-verification code for the user with the given email.
+	 * @param email The user's email address.
+	 * @param code The verification code to store.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean setVerificationCode(String email, String code) {
+		String sql = Schema.SET_VERIFICATION_CODE;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, code);
+			stmt.setString(2, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("setVerificationCode: " + sqle);
+			return false;
+		} // try-catch
+	} // setVerificationCode
+
+	/**
+	 * Returns the stored verification code for a user, or {@code null}
+	 * if none is set (e.g. the account is already verified).
+	 * @param email The user's email address.
+	 * @return The verification code, or {@code null}.
+	 */
+	public String getVerificationCode(String email) {
+		String sql = Schema.GET_VERIFICATION_CODE;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getString("verification_code");
+				} // if
+			} // try
+			return null;
+		} catch (SQLException sqle) {
+			System.err.println("getVerificationCode: " + sqle);
+			return null;
+		} // try-catch
+	} // getVerificationCode
+
+	/**
+	 * Marks a user's account as verified (ACTIVE) and clears their
+	 * verification code.
+	 * @param email The user's email address.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean activateUser(String email) {
+		String sql = Schema.ACTIVATE_USER;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("activateUser: " + sqle);
+			return false;
+		} // try-catch
+	} // activateUser
+
+	/**
+	 * Stores a password-reset code for the user with the given email,
+	 * along with when it expires.
+	 * @param email The user's email address.
+	 * @param code The reset code to store.
+	 * @param expiresAt Epoch-millisecond timestamp after which the code is invalid.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean setResetCode(String email, String code, long expiresAt) {
+		String sql = Schema.SET_RESET_CODE;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, code);
+			stmt.setString(2, Long.toString(expiresAt));
+			stmt.setString(3, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("setResetCode: " + sqle);
+			return false;
+		} // try-catch
+	} // setResetCode
+
+	/**
+	 * Returns the stored password-reset code for a user, or {@code null}
+	 * if none is set.
+	 * @param email The user's email address.
+	 * @return The reset code, or {@code null}.
+	 */
+	public String getResetCode(String email) {
+		String sql = Schema.GET_RESET_CODE;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getString("reset_code");
+				} // if
+			} // try
+			return null;
+		} catch (SQLException sqle) {
+			System.err.println("getResetCode: " + sqle);
+			return null;
+		} // try-catch
+	} // getResetCode
+
+	/**
+	 * Returns when a user's password-reset code expires.
+	 * @param email The user's email address.
+	 * @return Epoch-millisecond expiry timestamp, or {@code 0} if none is set.
+	 */
+	public long getResetCodeExpiry(String email) {
+		String sql = Schema.GET_RESET_CODE_EXPIRY;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					String raw = rs.getString("reset_code_expires");
+					if (raw != null) {
+						try {
+							return Long.parseLong(raw);
+						} catch (NumberFormatException nfe) {
+							return 0;
+						} // try-catch
+					} // if
+				} // if
+			} // try
+			return 0;
+		} catch (SQLException sqle) {
+			System.err.println("getResetCodeExpiry: " + sqle);
+			return 0;
+		} // try-catch
+	} // getResetCodeExpiry
+
+	/**
+	 * Clears a user's password-reset code and expiry.
+	 * @param email The user's email address.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean clearResetCode(String email) {
+		String sql = Schema.CLEAR_RESET_CODE;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("clearResetCode: " + sqle);
+			return false;
+		} // try-catch
+	} // clearResetCode
+
+	/**
+	 * Sets a new password for a user and clears any pending password-reset
+	 * code, so it can't be reused.
+	 * @param email The user's email address.
+	 * @param newPassword The new password.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean updatePassword(String email, String newPassword) {
+		String sql = Schema.UPDATE_PASSWORD;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, hashPassword(newPassword));
+			stmt.setString(2, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("updatePassword: " + sqle);
+			return false;
+		} // try-catch
+	} // updatePassword
+
+    /**
+     * Hashes the given {@code String} with the SHA-256 algorithm.
+     * @param plaintext The string to hash.
+     * @return The hashed {@code String}.
+     */
+    public String hashPassword(String plaintext) {
+        try {
+            messageDigest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException nsae) {
+            System.err.println("hashPassword: " + nsae);
+            return null;
+        } // try-catch
+        
+        // hash password
+		messageDigest.update(plaintext.getBytes());
+		return new String(messageDigest.digest());
+    } // hashPassword
 
 	/**
 	 * Wipes the database and reseeds it.
@@ -524,13 +925,21 @@ public class DataHandler {
 		} // if
 
 		// seeds movies
-		for (int i = 0; i < Seed.movies.length; i++) {
-			this.addMovie(Seed.movies[i]);
+		for (Movie movie : Seed.movies) {
+			this.addMovie(movie); 
 		} // for
 
 		// seeds users
-		for (int i = 0; i < Seed.users.length; i++) {
-			this.addUser(Seed.users[i]);
+		for (User user : Seed.users) {
+			this.addUser(user);
+		} // for
+
+		// seed fav movie
+		addFavoriteMovie(Seed.users[1], Seed.movies[1]);
+
+		// seed cards
+		for (int i = 0; i < Seed.cards.length; i++) {
+			addCard(Seed.users[2], Seed.cards[i]);
 		} // for
 
 		return true;

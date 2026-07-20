@@ -4,6 +4,9 @@ import java.time.YearMonth;
 
 /** Represents a {@code User}'s credit/debit card.  */
 public class Card {
+    /** Database id (payment_methods.id); -1 when not yet stored. */
+    private int id = -1;
+
     /** The card number. */
     private String cardNumber;
     
@@ -25,6 +28,22 @@ public class Card {
 	    this.billingAddress = billingAddress;
 	    this.expirationDate = YearMonth.of(year, month);
     } // Card
+
+    /**
+     * Returns the database id.
+     * @return The id, or -1 if not stored.
+     */
+    public int getId() {
+        return id;
+    } // getId
+
+    /**
+     * Sets the database id.
+     * @param id The id.
+     */
+    public void setId(int id) {
+        this.id = id;
+    } // setId
 
     /**
      * Returns the card number.

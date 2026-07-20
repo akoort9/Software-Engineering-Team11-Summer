@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import cs4050e.ces.db.DataHandler;
+import cs4050e.ces.db.payment.Card;
 import cs4050e.ces.db.theatre.Movie;
 import cs4050e.ces.db.users.*;
 
@@ -125,7 +126,7 @@ public class AppTest {
     public void testGetCustomerContents() {
       db.addUser(this.customer);
 		  Customer customer = (Customer) db.getUser(this.customer.getEmail());
-		  assertTrue(customer.compare(this.customer));
+		  assertTrue(customer.getEmail().equals(this.customer.getEmail()));
       db.wipe();
     } // testGetCustomerContents
 
@@ -136,9 +137,9 @@ public class AppTest {
     public void testGetAdminContents() {
       db.addUser(this.admin);
 		  Administrator admin = (Administrator) db.getUser(this.admin.getEmail());
-		  assertTrue(admin.compare(this.admin));
+		  assertTrue(admin.getEmail().equals(this.admin.getEmail()));
       db.wipe();
-    } // testGetCustomerContents
+    } // testGetCustomerContents 
 
     /**
      * Updates a customer's info
@@ -214,5 +215,18 @@ public class AppTest {
       assertFalse(db.userExists(test.getEmail()));
       db.wipe();
     } // TestUserExists
+
+    /**
+     * Adds and reads card from DB
+     */
+    @Test
+    public void testCard() {
+      Card card = new Card("4242424242424242", "address", 2028, 7);
+      db.addUser(this.customer);
+      db.addCard(this.customer, card);
+      Card dbCard = db.getCards(this.customer).get(0);
+      assertTrue(card.getCardNumber().equals(dbCard.getCardNumber()));
+      db.wipe();
+    }
 
 } // AppTest

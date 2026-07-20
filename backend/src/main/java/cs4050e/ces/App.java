@@ -4,9 +4,9 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import cs4050e.ces.api.requests.*;
+import cs4050e.ces.api.responses.*;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
 import cs4050e.ces.db.payment.Card;
@@ -31,18 +33,41 @@ public class App {
     /** GSON object. */
     private static final Gson GSON = new GsonBuilder().create();
 
+    /** Source of randomness for verification codes. */
+    private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
+
+    /** How long a password-reset code stays valid after it's sent. */
+    private static final long RESET_CODE_TTL_MILLIS = 15 * 60 * 1000;
+
     /**
      * Starts the HTTP server.
      * @param args unused.
      * @throws IOException if the server fails to start.
      */
     public static void main(String[] args) throws IOException {
+		// check args
+		for (String arg: args) {
+			switch(arg) {
+				case "--fresh":
+					db.wipe();
+					System.out.println("Seeded empty database.");
+					break;
+				default:
+					break;
+			} // switch
+		} // for
+
 		HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
 		server.createContext("/api/movies", App::handleMovies);
 		server.createContext("/api/user", App::handleUsers);
 		server.createContext("/api/favorites", App::handleFavorites);
 		server.createContext("/api/cards", App::handleCards);
+		server.createContext("/api/login", App::handleLogin);
+		server.createContext("/api/verify", App::handleVerify);
+		server.createContext("/api/forgot-password", App::handleForgotPassword);
+		server.createContext("/api/verify-reset-code", App::handleVerifyResetCode);
+		server.createContext("/api/reset-password", App::handleResetPassword);
 		server.setExecutor(null);
 		server.start();
 		System.out.println("Listening on http://localhost:" + PORT);
@@ -71,7 +96,7 @@ public class App {
 			handlePostMovie(exchange);
 		} // elif
 		else {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 		} // else
     } // handleMovies
 
@@ -84,11 +109,11 @@ public class App {
 		List<Movie> movies = db.getMovies();
 
 		if (movies == null) {
-			sendJson(exchange, 500, Map.of("error", "could not read database"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
 			return;
-		} // if
-
-		sendJson(exchange, 200, movies);
+		} else {
+			JsonResponse.send(exchange, 200, movies);
+		} // if-else
     } // handleGetMovies
 
     /**
@@ -98,34 +123,21 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostMovie(HttpExchange exchange) throws IOException {
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
-
-		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} // try-catch
-
-		Object titleObj = (json == null ? null : json.get("title"));
-		String title = titleObj == null ? "" : titleObj.toString().trim();
-
-		if (title.isEmpty()) {
-			sendJson(exchange, 400, Map.of("error", "title is required"));
-			return;
-		} // if
+		// handle request
+		MovieRequest request = GSON.fromJson(getBody(exchange), MovieRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
 
 		// only the title comes from the user right now; everything else defaults to empty
-		Movie movie = new Movie(title, "", "", "", "", 0, false);
+		Movie movie = new Movie(request.title, "", "", "", "", 0, false);
 		boolean saved = db.addMovie(movie);
 
 		if (!saved) {
-			sendJson(exchange, 500, Map.of("error", "could not save movie"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not save movie"));
 			return;
 		} // if
 
-		sendJson(exchange, 201, movie);
+		System.err.println("We get here.");
+		JsonResponse.send(exchange, 201, movie);
     } // handlePostMovie
 
 	/**
@@ -154,7 +166,7 @@ public class App {
 			handleUpdateUser(exchange);
 		} // elif
 		else {
-			sendJson(exchange, 405, Map.of("error", "method not allowed"));
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
 		} // else
     } // handleUsers
 
@@ -164,26 +176,16 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleGetUser(HttpExchange exchange) throws IOException {
-		//System.out.println("woah!");
-
-		String queryString = exchange.getRequestURI().getQuery();
-
-		// if there's no '?email=' in the query
-		if (!queryString.split("=", 2)[0].equals("email")) {
-			sendJson(exchange, 500, Map.of("error", "invalid query"));
-			return;
-		} // if
-
-		String email = queryString.split("=", 2)[1];
-		//System.out.println("we got an email! : " + email);
+		// extract email from query
+		String email = queryEmail(exchange);
 
 		// user with email does not exist
 		if (!db.userExists(email)) {
-			sendJson(exchange, 500, Map.of("error", "could not find user"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not find user"));
 			return;
 		} // if
 
-		sendJson(exchange, 200, db.getUser(email));
+		JsonResponse.send(exchange, 200, db.getUser(email));
     } // handleGetMovies
 
 	/**
@@ -193,36 +195,53 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handlePostUser(HttpExchange exchange) throws IOException {
-		String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-		Map<?, ?> json;
-		User user;
-
-		try {
-			json = GSON.fromJson(body, Map.class);
-		} catch (Exception e) {
-			sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-			return;
-		} // try-catch
-
-		// checking if user is an admin
-		Object isAdminObj = (json == null ? null : json.get("isAdmin"));
-		boolean isAdmin = (isAdminObj == null ? false : Boolean.getBoolean(isAdminObj.toString().trim()));
+		// handle request
+		AddUserRequest request = GSON.fromJson(getBody(exchange), AddUserRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+		User user = null;
 
 		// making appropriate objects
-		if (isAdmin) {
-			user = GSON.fromJson(body, Administrator.class);
+		if (request.isAdmin) {
+			user = new Administrator(
+				request.name, 
+				request.email, 
+				request.password
+			);
 		} else {
-			user = GSON.fromJson(body, Customer.class);
+			user = new Customer(
+				request.name,
+				request.email,
+				request.password,
+				request.lastName, 
+				request.mailingAddress,
+			"INACTIVE"
+			);
 		} // if-else
-		
+
 		boolean saved = db.addUser(user);
 
 		if (!saved) {
-			sendJson(exchange, 500, Map.of("error", "could not save user"));
+			JsonResponse.send(exchange, 500, Map.of("error", "could not save user"));
 			return;
 		} // if
 
-		sendJson(exchange, 201, user);
+		if (request.isAdmin) {
+			// admins are active immediately; customers must verify by email
+			JsonResponse.send(exchange, 201, user);
+			return;
+		} // if
+
+		// generate a verification code and email it.
+		String code = generateVerificationCode();
+		db.setVerificationCode(user.getEmail(), code);
+		System.out.println("[email] Verification code for " + user.getEmail() + ": " + code);
+
+		JsonResponse.send(exchange, 201, Map.of("user", user, "verificationCode", code));
+
+		if(!EmailResponse.send(EmailResponse.Template.VERIFICATION, user, code)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not send verification email"));
+			return;
+		} // if
     } // handlePostUser
 
     /**
@@ -231,48 +250,32 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleUpdateUser(HttpExchange exchange) throws IOException {
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<?, ?> json;
-
-        try {
-            json = GSON.fromJson(body, Map.class);
-        } catch (Exception e) {
-            sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-            return;
-        } // try-catch
-
-        String email = str(json == null ? null : json.get("email"));
-        if (email.isEmpty()) {
-            sendJson(exchange, 400, Map.of("error", "email is required"));
-            return;
-        } // if
-
-        User existing = db.getUser(email);
-        if (existing == null) {
-            sendJson(exchange, 404, Map.of("error", "user not found"));
-            return;
-        } // if
-
+		// handle request
+		UpdateUserRequest request = GSON.fromJson(getBody(exchange), UpdateUserRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+        
         Customer updated = new Customer(
-            str(json.get("name")),
-            email,
+            request.name,
+            request.email,
             "",
-            str(json.get("lastName")),
-            str(json.get("mailingAddress")),
+            request.lastName,
+            request.mailingAddress,
             "ACTIVE"
         );
-        updated.setId(existing.getId());
 
         if (!db.updateUser(updated)) {
-            sendJson(exchange, 500, Map.of("error", "could not update user"));
+            JsonResponse.send(exchange, 500, Map.of("error", "could not update user"));
             return;
         } // if
 
-        sendJson(exchange, 200, db.getUser(email));
+        JsonResponse.send(exchange, 200, db.getUser(request.email));
     } // handleUpdateUser
 
     /**
-     * Handles a user's favorite movies: GET lists them, POST adds one, DELETE removes one.
+     * Handles a user's favorite movies: 
+	 * GET lists them, 
+	 * POST adds one, 
+	 * DELETE removes one.
      * @param exchange The HTTP exchange to respond to.
      * @throws IOException if writing the response fails.
      */
@@ -286,68 +289,70 @@ public class App {
         if (method.equals("OPTIONS")) {
             exchange.sendResponseHeaders(204, -1);
             return;
-        } // if
+        } else if (method.equals("GET")) {
+            handleGetFavorites(exchange);
+        } else if (method.equals("POST") || method.equals("DELETE")) {
+			handlePostFavorites(exchange);
+		} else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+            return;
+		} // if-else
+    } // handleFavorites
 
-        if (method.equals("GET")) {
-            String email = queryEmail(exchange);
-            if (email == null) {
-                sendJson(exchange, 400, Map.of("error", "email is required"));
-                return;
-            } // if
-            List<Movie> favorites = db.getFavoriteMovies(customerFor(email));
-            if (favorites == null) {
-                sendJson(exchange, 500, Map.of("error", "could not read favorites"));
-                return;
-            } // if
-            sendJson(exchange, 200, favorites);
+	/**
+     * Handles getting a user's favorite movies.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+	private static void handleGetFavorites(HttpExchange exchange) throws IOException {
+		String email = queryEmail(exchange);
+        if (email == null) {
+            JsonResponse.send(exchange, 400, Map.of("error", "email is required"));
             return;
         } // if
 
-        if (!method.equals("POST") && !method.equals("DELETE")) {
-            sendJson(exchange, 405, Map.of("error", "method not allowed"));
+        List<Movie> favorites = db.getFavoriteMovies(customerFor(email));
+
+        if (favorites == null) {
+            JsonResponse.send(exchange, 500, Map.of("error", "could not read favorites"));
             return;
         } // if
 
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<?, ?> json;
-        try {
-            json = GSON.fromJson(body, Map.class);
-        } catch (Exception e) {
-            sendJson(exchange, 400, Map.of("error", "invalid JSON"));
-            return;
-        } // try-catch
+        JsonResponse.send(exchange, 200, favorites);
+	} // handleGetFavorites
 
-        String email = str(json == null ? null : json.get("email"));
-        int movieId = intFrom(json == null ? null : json.get("movieId"));
-        if (email.isEmpty() || movieId == -1) {
-            sendJson(exchange, 400, Map.of("error", "email and movieId are required"));
-            return;
-        } // if
+	/**
+     * Handles adding or removing a user's favorite movies.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+	private static void handlePostFavorites(HttpExchange exchange) throws IOException {
+		// handle request
+		FavoriteMovieRequest request = GSON.fromJson(getBody(exchange), FavoriteMovieRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
 
-        User user = db.getUser(email);
-        if (user == null) {
-            sendJson(exchange, 404, Map.of("error", "user not found"));
-            return;
-        } // if
+		User user = db.getUser(request.email);
+        Movie movie = db.getMovie(request.movieId);
 
-        Movie movie = new Movie("", "", "", "", "", 0, false);
-        movie.setId(movieId);
-
-        boolean ok = method.equals("POST")
+        boolean ok = exchange.getRequestMethod().equals("POST")
             ? db.addFavoriteMovie(user, movie)
             : db.removeFavoriteMovie(user, movie);
 
-        sendJson(exchange, ok ? 200 : 500, Map.of("ok", ok));
-    } // handleFavorites
+        JsonResponse.send(exchange, ok ? 200 : 500, Map.of("ok", ok));
+	} // handlePostFavorites
 
     /**
-     * Handles a user's payment cards: GET lists them, POST adds one (max 3).
+     * Handles a user's payment cards: 
+	 * GET lists them, 
+	 * POST adds one (max 3),
+	 * DELETE removes one,
+	 * PUT updates one.
      * @param exchange The HTTP exchange to respond to.
      * @throws IOException if writing the response fails.
      */
     private static void handleCards(HttpExchange exchange) throws IOException {
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
 
         String method = exchange.getRequestMethod();
@@ -355,75 +360,100 @@ public class App {
         if (method.equals("OPTIONS")) {
             exchange.sendResponseHeaders(204, -1);
             return;
-        } // if
+        } else if (method.equals("GET")) {
+			handleGetCards(exchange);
+		} else if (method.equals("POST") ||
+			method.equals("PUT") ||
+			method.equals("DELETE")) {
+			handlePostCards(exchange);
+		} else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+            return;
+		} // if-else
+    } // handleCards
 
-        if (method.equals("GET")) {
-            String email = queryEmail(exchange);
-            if (email == null) {
-                sendJson(exchange, 400, Map.of("error", "email is required"));
-                return;
-            } // if
-            List<Card> cards = db.getCards(customerFor(email));
-            if (cards == null) {
-                sendJson(exchange, 500, Map.of("error", "could not read cards"));
-                return;
-            } // if
-            List<Map<String, String>> out = new ArrayList<>();
-            for (Card card : cards) {
-                Map<String, String> m = new HashMap<>();
-                m.put("cardNumber", card.getCardNumber());
-                m.put("billingAddress", card.getBillingAddress());
-                m.put("expirationDate", card.getExpirationDate().toString());
-                out.add(m);
-            } // for
-            sendJson(exchange, 200, out);
+	/**
+     * Handles getting a user's payment cards: 
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleGetCards(HttpExchange exchange) throws IOException {
+		String email = queryEmail(exchange);
+        if (email == null) {
+            JsonResponse.send(exchange, 400, Map.of("error", "email is required"));
             return;
         } // if
 
-        if (!method.equals("POST")) {
-            sendJson(exchange, 405, Map.of("error", "method not allowed"));
+        List<Card> cards = db.getCards(customerFor(email));
+
+        if (cards == null) {
+            JsonResponse.send(exchange, 500, Map.of("error", "could not read cards"));
             return;
         } // if
 
-        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<?, ?> json;
-        try {
-            json = GSON.fromJson(body, Map.class);
-        } catch (Exception e) {
-            sendJson(exchange, 400, Map.of("error", "invalid JSON"));
+        List<Map<String, String>> out = new ArrayList<>();
+            
+		for (Card card : cards) {
+            Map<String, String> m = new HashMap<>();
+            m.put("id", String.valueOf(card.getId()));
+            m.put("cardNumber", card.getCardNumber());
+            m.put("billingAddress", card.getBillingAddress());
+            m.put("expirationDate", card.getExpirationDate().toString());
+            out.add(m);
+	    } // for
+            
+		JsonResponse.send(exchange, 200, out);  
+		return;
+	} // handleGetCards
+
+	/**
+     * Handles adding, updating or removing a user's payment cards.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handlePostCards(HttpExchange exchange) throws IOException {
+		String method = exchange.getRequestMethod();
+		UpdateCardRequest request = null;
+
+		String body = getBody(exchange);
+
+		// DELETE sends a simple CardRequest
+		if (method.equals("DELETE")) {
+			CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
+			if (!checkRequest(exchange, request)) { return; } // if
+			boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
+            JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
             return;
-        } // try-catch
+		} else {
+			request = GSON.fromJson(body, UpdateCardRequest.class);
+			if (!checkRequest(exchange, request)) { return; } // if
+		} // if-else
 
-        String email = str(json == null ? null : json.get("email"));
-        String cardNumber = str(json.get("cardNumber"));
-        String billingAddress = str(json.get("billingAddress"));
-        String expiration = str(json.get("expirationDate"));
+		User user = db.getUser(request.email);
 
-        if (email.isEmpty() || cardNumber.isEmpty() || !expiration.contains("-")) {
-            sendJson(exchange, 400, Map.of("error", "email, cardNumber, and expirationDate (YYYY-MM) are required"));
-            return;
-        } // if
-
-        User user = db.getUser(email);
-        if (user == null) {
-            sendJson(exchange, 404, Map.of("error", "user not found"));
-            return;
-        } // if
-
-        List<Card> existing = db.getCards(user);
-        if (existing != null && existing.size() >= Customer.MAX_CARDS) {
-            sendJson(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
-            return;
-        } // if
-
-        String[] parts = expiration.split("-");
+		// POST and PUT both need card details 
+        String[] parts = request.expirationDate.split("-");
         int year = Integer.parseInt(parts[0]);
         int month = Integer.parseInt(parts[1]);
-        Card card = new Card(cardNumber, billingAddress, year, month);
+        Card card = new Card(request.cardNumber, request.billingAddress, year, month);
+
+        // update an existing card (PUT)
+        if (exchange.getRequestMethod().equals("PUT")) {
+            boolean updated = db.updateCard(user, request.cardId, card);
+            JsonResponse.send(exchange, updated ? 200 : 500, Map.of("ok", updated));
+            return;
+        } // if
+
+        // add a new card (POST)
+        List<Card> existing = db.getCards(user);
+        if (existing != null && existing.size() >= Customer.MAX_CARDS) {
+            JsonResponse.send(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
+            return;
+        } // if
 
         boolean ok = db.addCard(user, card);
-        sendJson(exchange, ok ? 201 : 500, Map.of("ok", ok));
-    } // handleCards
+        JsonResponse.send(exchange, ok ? 201 : 500, Map.of("ok", ok));
+	} // handlePostCards
 
     /**
      * Builds a lightweight {@code Customer} carrying only an email, for
@@ -451,46 +481,249 @@ public class App {
         } // if
         return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
     } // queryEmail
-
-    /**
-     * Returns a trimmed string for a JSON value, or empty if null.
-     * @param value The value.
-     * @return The trimmed string.
-     */
-    private static String str(Object value) {
-        return value == null ? "" : value.toString().trim();
-    } // str
-
-    /**
-     * Parses a JSON number into an int, or {@code -1} if invalid.
-     * @param value The value.
-     * @return The int, or {@code -1}.
-     */
-    private static int intFrom(Object value) {
-        if (value == null) {
-            return -1;
-        } // if
-        try {
-            return (int) Double.parseDouble(value.toString().trim());
-        } catch (NumberFormatException e) {
-            return -1;
-        } // try-catch
-    } // intFrom
-
-    /**
-     * Writes a JSON response with the given status code.
+	
+	/**
+     * Verifies a customer account using an email/code pair from the request
+     * body, flipping the account state to ACTIVE when the code matches.
      * @param exchange The HTTP exchange to respond to.
-     * @param status The HTTP status code.
-     * @param payload The object to serialize as JSON.
      * @throws IOException if writing the response fails.
      */
-    private static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
-		byte[] bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
-		exchange.getResponseHeaders().add("Content-Type", "application/json");
-		exchange.sendResponseHeaders(status, bytes.length);
+    private static void handleVerify(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
 
-		try (OutputStream os = exchange.getResponseBody()) {
-			os.write(bytes);
-		} // try
-    } // sendJson
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		// handle request
+		VerifyRequest request = GSON.fromJson(getBody(exchange), VerifyRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		if (!db.activateUser(request.email)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not verify account"));
+			return;
+		} // if
+
+		JsonResponse.send(exchange, 200, Map.of("message", "Account verified. You can now log in."));
+    } // handleVerify
+
+	/**
+	 * Starts a password-reset flow for an email/request body. Always
+	 * responds with a generic message, whether or not an account exists
+	 * for that email, so the response can't be used to test which emails
+	 * are registered.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+    private static void handleForgotPassword(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if-else
+
+		// handle request
+		UserRequest request = GSON.fromJson(getBody(exchange), UserRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		User user = db.getUser(request.email);
+
+		// generate and store verification code
+		String code = generateVerificationCode();
+		long expiresAt = System.currentTimeMillis() + RESET_CODE_TTL_MILLIS;
+		db.setResetCode(request.email, code, expiresAt);
+		System.out.println("[email] Password reset code for " + request.email + ": " + code);
+
+		if (!EmailResponse.send(EmailResponse.Template.PASSWORD_RESET, user, code)) {
+			System.err.println("[email] failed to send password reset email to " + request.email);
+		} // if
+
+		// same response regardless of whether the account exists
+		JsonResponse.send(exchange, 200,
+			Map.of("message", "If an account exists for that email, a password reset code has been sent."));
+    } // handleForgotPassword
+
+	/**
+	 * Confirms an email/code pair from a password-reset flow without
+	 * changing any account state, so the frontend can move the user on to
+	 * the "choose a new password" step.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+    private static void handleVerifyResetCode(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		// handle request
+		VerifyResetRequest request = GSON.fromJson(getBody(exchange), VerifyResetRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		JsonResponse.send(exchange, 200, Map.of("message", "Code verified."));
+    } // handleVerifyResetCode
+
+	/**
+	 * Completes a password-reset flow: re-checks the email/code pair from
+	 * the request body and, if still valid, sets the account's new
+	 * password and clears the reset code.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+    private static void handleResetPassword(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		// handle request
+		NewPasswordRequest request = GSON.fromJson(getBody(exchange), NewPasswordRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		// update the password
+		if (!db.updatePassword(request.email, request.newPassword)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not reset password"));
+			return;
+		} // if
+
+		JsonResponse.send(exchange, 200, Map.of("message", "Password reset. You can now log in."));
+    } // handleResetPassword
+
+    /**
+     * Authenticates a user from an email/password pair in the request body.
+     * Customers must have a verified (ACTIVE) account to log in.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleLogin(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if
+
+		// handle request
+		LoginRequest request = GSON.fromJson(getBody(exchange), LoginRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		User user = db.getUser(request.email);
+
+		// customers must verify their account (via email) before logging in
+		if (!user.isAdmin()) {
+			Customer customer = (Customer) user;
+			if (customer.getState() == Customer.CustomerState.INACTIVE) {
+				JsonResponse.send(exchange, 403, Map.of("error",
+					"Account is not verified. Please check your email to verify your account."));
+				return;
+			} // if
+			if (customer.getState() == Customer.CustomerState.SUSPENDED) {
+				JsonResponse.send(exchange, 403, Map.of("error", "This account has been suspended."));
+				return;
+			} // if
+		} // if
+
+		JsonResponse.send(exchange, 200, user);
+    } // handleLogin
+
+	/**
+	 * Checks a {@code Request} from the frontend.
+	 * @param request The request.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	private static boolean checkRequest(HttpExchange exchange, Request request) {
+		try {
+			if (!request.check(exchange)) {
+				System.err.println(getCallerMethodName() + ": failed request.");
+				return false;
+			} else {
+				return true;
+			}// if-else
+		} catch (JsonSyntaxException jse) {
+			try { JsonResponse.send(exchange, 400, Map.of("error", "invalid JSON")); }
+			catch (IOException ioe) { System.err.println(getCallerMethodName() + ": failed to send error."); }
+			return false;
+		} catch (IOException ioe) {
+			System.err.println(getCallerMethodName() + ": " + ioe);
+			return false;
+		} // try-catch
+	} // checkUserRequest
+
+	/**
+	 * Source - https://stackoverflow.com/a/68674306
+	 * Posted by Nathan
+	 * Retrieved 2026-07-19, License - CC BY-SA 4.0
+	 * Returns the name of the calling method.
+	 * @return caller method name. 
+	 */
+	private static String getCallerMethodName() {
+		return StackWalker.
+			getInstance().
+			walk(stream -> stream.skip(2).findFirst().get()).
+			getMethodName();
+	} // getCallerMethodName
+
+	/**
+	 * Gets the body of the {@code HttpExchange}.
+	 * @param exchange The HTTP exchange.
+	 * @return The body of the exchange.
+	 */
+	private static String getBody(HttpExchange exchange) throws IOException {
+		return new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+	} // getBody
+
+    /**
+     * Generates a random 6-digit verification code.
+     * @return The zero-padded verification code.
+     */
+    private static String generateVerificationCode() {
+		return String.format("%06d", RANDOM.nextInt(1_000_000));
+    } // generateVerificationCode
 } // App

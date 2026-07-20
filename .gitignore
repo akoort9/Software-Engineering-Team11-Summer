@@ -1,3 +1,6 @@
+# Database file
+backend/db/listings.db
+
 # Logs
 logs
 *.log

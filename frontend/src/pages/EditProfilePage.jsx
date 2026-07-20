@@ -7,8 +7,12 @@ import {
   removeFavorite,
   fetchCards,
   addCard,
+  updateCard,
+  removeCard,
 } from '../api/users.js'
 import { getCurrentEmail } from '../utils/currentUser.js'
+import FavoriteStar from '../components/FavoriteStar.jsx'
+import '../App.css'
 import '../styles/AuthPage.css'
 
 export default function EditProfilePage() {
@@ -28,11 +32,21 @@ export default function EditProfilePage() {
     billingAddress: '',
     expirationDate: '',
   })
+  const [editingCardId, setEditingCardId] = useState(null)
+  const [editCard, setEditCard] = useState({
+    cardNumber: '',
+    billingAddress: '',
+    expirationDate: '',
+  })
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!email) {
+      setLoading(false)
+      return
+    }
     Promise.all([
       fetchUser(email).then((u) =>
         setProfile({
@@ -88,14 +102,88 @@ export default function EditProfilePage() {
     e.preventDefault()
     setError('')
     setStatus('')
+
+    const cardNumber = newCard.cardNumber.replace(/\s+/g, '')
+    if (!/^\d{13,19}$/.test(cardNumber)) {
+      setError('Enter a valid card number (13-19 digits).')
+      return
+    }
+    if (!/^\d{4}-\d{2}$/.test(newCard.expirationDate)) {
+      setError('Please choose an expiration month (YYYY-MM).')
+      return
+    }
+
     try {
-      await addCard(newCard, email)
+      await addCard({ ...newCard, cardNumber }, email)
       setNewCard({ cardNumber: '', billingAddress: '', expirationDate: '' })
       setCards(await fetchCards(email))
       setStatus('Card added.')
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  const updateEditCardField = (e) =>
+    setEditCard({ ...editCard, [e.target.name]: e.target.value })
+
+  const startEditCard = (card) => {
+    setError('')
+    setStatus('')
+    setEditingCardId(card.id)
+    setEditCard({
+      cardNumber: card.cardNumber,
+      billingAddress: card.billingAddress,
+      expirationDate: card.expirationDate,
+    })
+  }
+
+  const handleUpdateCard = async (e) => {
+    e.preventDefault()
+    setError('')
+    setStatus('')
+
+    const cardNumber = editCard.cardNumber.replace(/\s+/g, '')
+    if (!/^\d{13,19}$/.test(cardNumber)) {
+      setError('Enter a valid card number (13-19 digits).')
+      return
+    }
+    if (!/^\d{4}-\d{2}$/.test(editCard.expirationDate)) {
+      setError('Please choose an expiration month (YYYY-MM).')
+      return
+    }
+
+    try {
+      await updateCard(editingCardId, { ...editCard, cardNumber }, email)
+      setEditingCardId(null)
+      setCards(await fetchCards(email))
+      setStatus('Card updated.')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const handleRemoveCard = async (cardId) => {
+    setError('')
+    setStatus('')
+    try {
+      await removeCard(cardId, email)
+      setCards(cards.filter((card) => card.id !== cardId))
+      setStatus('Card removed.')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  if (!email) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <h1>Edit Profile</h1>
+          <p className="auth-message">Please log in to view your profile.</p>
+          <Link to="/login" className="auth-button">Go to Login</Link>
+        </div>
+      </main>
+    )
   }
 
   if (loading) {
@@ -165,13 +253,10 @@ export default function EditProfilePage() {
               {favorites.map((movie) => (
                 <li key={movie.id} className="profile-list-row">
                   <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-                  <button
-                    type="button"
-                    className="link-danger"
+                  <FavoriteStar
+                    favorited
                     onClick={() => handleRemoveFavorite(movie.id)}
-                  >
-                    Remove
-                  </button>
+                  />
                 </li>
               ))}
             </ul>
@@ -185,12 +270,67 @@ export default function EditProfilePage() {
             <p className="field-hint">No cards saved.</p>
           ) : (
             <ul className="profile-list">
-              {cards.map((card, index) => (
-                <li key={index} className="profile-list-row">
-                  <span className="mono">
-                    &bull;&bull;&bull;&bull; {card.cardNumber.slice(-4)}
-                  </span>
-                  <span className="field-hint">exp {card.expirationDate}</span>
+              {cards.map((card) => (
+                <li key={card.id} className="profile-list-row">
+                  {editingCardId === card.id ? (
+                    <form className="card-edit-form" onSubmit={handleUpdateCard}>
+                      <input
+                        name="cardNumber"
+                        value={editCard.cardNumber}
+                        onChange={updateEditCardField}
+                        placeholder="Card number"
+                      />
+                      <input
+                        name="billingAddress"
+                        value={editCard.billingAddress}
+                        onChange={updateEditCardField}
+                        placeholder="Billing address"
+                      />
+                      <input
+                        name="expirationDate"
+                        type="month"
+                        placeholder="YYYY-MM"
+                        pattern="\d{4}-\d{2}"
+                        value={editCard.expirationDate}
+                        onChange={updateEditCardField}
+                      />
+                      <div className="card-edit-actions">
+                        <button type="submit" className="btn-small primary">
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-small"
+                          onClick={() => setEditingCardId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <span className="mono">
+                        &bull;&bull;&bull;&bull; {card.cardNumber.slice(-4)}
+                      </span>
+                      <span className="card-row-actions">
+                        <span className="field-hint">exp {card.expirationDate}</span>
+                        <button
+                          type="button"
+                          className="link-action"
+                          onClick={() => startEditCard(card)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="link-danger"
+                          onClick={() => handleRemoveCard(card.id)}
+                        >
+                          Remove
+                        </button>
+                      </span>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -223,9 +363,12 @@ export default function EditProfilePage() {
                   id="expirationDate"
                   name="expirationDate"
                   type="month"
+                  placeholder="YYYY-MM"
+                  pattern="\d{4}-\d{2}"
                   value={newCard.expirationDate}
                   onChange={updateCardField}
                 />
+                <small className="field-hint">Format: YYYY-MM (e.g. 2027-05)</small>
               </div>
               <button type="submit" className="auth-button">
                 Add Card

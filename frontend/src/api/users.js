@@ -58,5 +58,154 @@ export async function addCard(card, email = getCurrentEmail()) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error || 'Failed to add card')
   }
+}
+
+export async function updateCard(cardId, card, email = getCurrentEmail()) {
+  const res = await fetch('/api/cards', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...card, cardId, email }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Failed to update card')
+  }
+}
+
+export async function removeCard(cardId, email = getCurrentEmail()) {
+  const res = await fetch('/api/cards', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cardId, email }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Failed to remove card')
+  }
+}
+
+export async function registerUser(user) {
+  const res = await fetch('/api/user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(user),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to create account'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function loginUser(credentials) {
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to log in'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function verifyUser({ email, code }) {
+  const res = await fetch('/api/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to verify account'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function requestPasswordReset({ email }) {
+  const res = await fetch('/api/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to send password reset email'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function verifyResetCode({ email, code }) {
+  const res = await fetch('/api/verify-reset-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to verify reset code'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
+  return res.json()
+}
+
+export async function resetPassword({ email, code, newPassword }) {
+  const res = await fetch('/api/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, newPassword }),
+  })
+
+  if (!res.ok) {
+    let message = 'Failed to reset password'
+    try {
+      const data = await res.json()
+      if (data && data.error) message = data.error
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message)
+  }
+
   return res.json()
 }

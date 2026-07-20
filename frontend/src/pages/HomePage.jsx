@@ -3,8 +3,13 @@ import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
 import { getShowtimes } from '../utils/showtimes.js'
+import { useAuth } from '../auth/AuthContext.jsx'
+import { useFavorites } from '../hooks/useFavorites.js'
+import FavoriteStar from '../components/FavoriteStar.jsx'
 
 export default function HomePage() {
+  const { user, logout } = useAuth()
+  const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
   const [movies, setMovies] = useState([])
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
@@ -57,12 +62,20 @@ export default function HomePage() {
       <div className="movie-grid">
         {visibleMovies.map((movie) => (
           <article key={movie.id} className="movie-card">
-            <h2>
-              <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-            </h2>
+            <div className="movie-card-header">
+              <h2>
+                <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+              </h2>
+              {canFavorite && (
+                <FavoriteStar
+                  favorited={isFavorited(movie.id)}
+                  onClick={() => toggleFavorite(movie.id)}
+                />
+              )}
+            </div>
               <p className="movie-genre">{movie.genre}</p>
               <p className="movie-status">{statusLabel(movie.status)}</p>
-	      {getShowtimes(movie).length > 0 ? (  
+	      {(getShowtimes(movie).length > 0) && movie.status ? (  
 		<ul className="showtimes">
 		    {getShowtimes(movie).map((time) => (
 			<li key={time}>
@@ -82,11 +95,27 @@ export default function HomePage() {
         ))}
       </div>
 
-      <p>
-        <Link to="/booking">Book Seats</Link> | <Link to="/admin">Admin</Link> |{' '}
-        <Link to="/login">Log In</Link> | <Link to="/register">Register</Link> |{' '}
-        <Link to="/edit-profile">Edit Profile</Link>
-      </p>
+      {user ? (
+        <p>
+          Welcome, {user.name || user.email}
+          {user.isAdmin && ' (admin)'} |{' '}
+          <Link to="/booking">Book Seats</Link> |{' '}
+          {user.isAdmin && (
+            <>
+              <Link to="/admin">Admin</Link> |{' '}
+            </>
+          )}
+          <Link to="/edit-profile">Edit Profile</Link> |{' '}
+          <button type="button" onClick={logout}>
+            Log Out
+          </button>
+        </p>
+      ) : (
+        <p>
+          <Link to="/booking">Book Seats</Link> |{' '}
+          <Link to="/login">Log In</Link> | <Link to="/register">Register</Link>
+        </p>
+      )}
     </main>
   )
 }
