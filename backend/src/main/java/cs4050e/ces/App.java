@@ -238,7 +238,7 @@ public class App {
 
 		JsonResponse.send(exchange, 201, Map.of("user", user, "verificationCode", code));
 
-		if(!EmailResponse.send(EmailResponse.Template.VERIFICATION, user, code)) {
+		if(!EmailResponse.send(EmailTemplates.Template.VERIFICATION, user, code)) {
 			JsonResponse.send(exchange, 500, Map.of("error", "could not send verification email"));
 			return;
 		} // if
@@ -552,7 +552,8 @@ public class App {
 		db.setResetCode(request.email, code, expiresAt);
 		System.out.println("[email] Password reset code for " + request.email + ": " + code);
 
-		if (!EmailResponse.send(EmailResponse.Template.PASSWORD_RESET, user, code)) {
+		// sending the email
+		if (!EmailResponse.send(EmailTemplates.Template.PASSWORD_RESET, user, code)) {
 			System.err.println("[email] failed to send password reset email to " + request.email);
 		} // if
 
@@ -679,6 +680,11 @@ public class App {
 	 * @return {@code true} if successful, {@code false} otherwise.
 	 */
 	private static boolean checkRequest(HttpExchange exchange, Request request) {
+		if (exchange == null || request == null) {
+			System.err.println(getCallerMethodName() + ": cannot check with null arguments.");
+			return false;
+		} // if
+
 		try {
 			if (!request.check(exchange)) {
 				System.err.println(getCallerMethodName() + ": failed request.");

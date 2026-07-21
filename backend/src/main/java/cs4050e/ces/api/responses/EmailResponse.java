@@ -5,6 +5,7 @@ import org.simplejavamail.api.mailer.Mailer;
 import org.simplejavamail.api.mailer.config.TransportStrategy;
 import org.simplejavamail.mailer.MailerBuilder;
 
+import cs4050e.ces.api.responses.EmailTemplates.Template;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.users.User;
 
@@ -13,30 +14,36 @@ public class EmailResponse implements Response {
 	/** Access to the database. */
 	private static final DataHandler db = DataHandler.getInstance();
 
-	/** Template you wish to use for sending an email. */
-	public enum Template {
-		VERIFICATION,
-		PASSWORD_RESET
-	};
-
 	/**
 	 * Sends an email to a {@code User} with a given code.
 	 * @param template The email template to use.
 	 * @param user The user to send the email to.
-	 * @param code The user's verification code.
+	 * @param code The user's verification code. This can be null
+	 * if the email does not require it (EDIT_PROFILE)
 	 */
 	public static boolean send(Template template, User user, String code) {
-		if (!db.userExists(user.getEmail()) || code.isEmpty()) {
+		if (!db.userExists(user.getEmail())) {
 			return false;
 		} // if
 
 		Email email = null;
 		switch(template) {
 			case VERIFICATION:
-				email = EmailTemplates.getVerificationEmail(user, code);
-				break;
+				if (!code.isEmpty()) {
+					email = EmailTemplates.getVerificationEmail(user, code);
+					break;
+				} else {
+					return false;
+				} // if-else
 			case PASSWORD_RESET:
-				email = EmailTemplates.getPasswordResetEmail(user, code);
+				if (!code.isEmpty()) {
+					email = EmailTemplates.getPasswordResetEmail(user, code);
+					break;
+				} else {
+					return false;
+				} // if-else
+			case EDIT_PROFILE:
+				email = EmailTemplates.getEditProfileEmail(user);
 				break;
 			default:
 				return false;

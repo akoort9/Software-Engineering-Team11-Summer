@@ -13,6 +13,18 @@ public class EmailTemplates {
     /** The name of the sender for all these emails. */
     static final String CES_NAME = "Cinema E-booking System";
 
+    /** 
+     * The template you wish to use for sending an email.
+     * {@code EDIT_PROFILE} - Edited profile email.
+     * {@code PASSWORD_RESET} - Password reset email.
+     * {@code VERIFICATION} - Account verification email.
+     */
+	public enum Template {
+        EDIT_PROFILE,
+        PASSWORD_RESET,
+		VERIFICATION
+	};
+
     /**
      * Creates a user verification email.
      * @param user The user to send it to.
@@ -43,6 +55,22 @@ public class EmailTemplates {
 			.withPlainText("Hello " + user.getName() + ", your password reset code is: " +
 				code + ". Use this code to reset your password. If you " +
 				"didn't request this, you can safely ignore this email.")
+			.buildEmail();
+    } // getPasswordResetEmail
+
+    /**
+     * Creates an edited profile email.
+     * @param user The user to send it to.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getEditProfileEmail(User user) {
+        return EmailBuilder.startingBlank()
+			.from(CES_NAME, CES_FROM_ADDRESS)
+			.to(user.getName(), user.getEmail())
+			.withSubject("Cinema E-booking System: Your profile details were changed.")
+			.withPlainText("Hello " + user.getName() + ", your profile details " +
+				"were changed recently. If you made these changes, you can safely " +
+                "ignore this email.")
 			.buildEmail();
     } // getPasswordResetEmail
 } // EmailTemplates
