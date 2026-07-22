@@ -31,9 +31,31 @@ export default function HomePage() {
     return matchesTitle && matchesGenre
   })
 
-  return (
-    <main>
+return (
+  <main className="home">
+    <header className="top-bar">
       <h1>Movies</h1>
+      <nav className="auth-nav">
+        {user ? (
+          <>
+            <span>
+              Welcome, {user.name || user.email}
+              {user.isAdmin && ' (admin)'}
+            </span>
+            {user.isAdmin && <Link to="/admin">Admin</Link>}
+            <Link to="/edit-profile">Edit Profile</Link>
+            <button type="button" onClick={logout}>
+              Log Out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">Log In</Link>
+            <Link to="/register">Register</Link>
+          </>
+        )}
+      </nav>
+    </header>
 
       <input
         type="text"
@@ -111,10 +133,11 @@ export default function HomePage() {
           </button>
         </p>
       ) : (
-        <p>
-          <Link to="/booking">Book Seats</Link> |{' '}
-          <Link to="/login">Log In</Link> | <Link to="/register">Register</Link>
-        </p>
+        <div className="book-seats-cta">
+          <Link to="/booking" className="book-seats-btn">
+            Book Seats
+          </Link>
+    </div>
       )}
     </main>
   )

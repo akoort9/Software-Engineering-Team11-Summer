@@ -5,6 +5,13 @@
   text-align: left;
 }
 
+.home {
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  text-align: left;
+}
+
 .movie-input {
   width: 100%;
   padding: 0.6rem 0.8rem;
@@ -239,4 +246,64 @@
 .detail-title-row .favorite-star {
   font-size: 2rem;
   margin-top: 0.5rem;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.top-bar h1 {
+  margin: 0;
+  font-size: 2.25rem;
+}
+
+.auth-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.95rem;
+}
+
+.auth-nav a,
+.auth-nav button {
+  color: var(--text-h);
+  text-decoration: none;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-nav a:hover,
+.auth-nav button:hover {
+  color: var(--accent);
+}
+
+.book-seats-cta {
+  display: flex;
+  justify-content: center;
+  margin: 2.5rem 0 1rem;
+}
+
+.book-seats-btn {
+  display: inline-block;
+  padding: 0.9rem 2.75rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.book-seats-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
 }
