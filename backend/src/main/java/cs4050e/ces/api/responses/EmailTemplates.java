@@ -45,4 +45,20 @@ public class EmailTemplates {
 				"didn't request this, you can safely ignore this email.")
 			.buildEmail();
     } // getPasswordResetEmail
+
+    /**
+     * Creates an account-update notification email.
+     * @param user The user whose account was updated.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getAccountUpdatedEmail(User user) {
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Your account was updated")
+            .withPlainText("Hello " + user.getName() + ", this is a confirmation that your " +
+                "account details were just updated. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getAccountUpdatedEmail
 } // EmailTemplates

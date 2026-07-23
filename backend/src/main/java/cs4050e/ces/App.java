@@ -250,26 +250,30 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleUpdateUser(HttpExchange exchange) throws IOException {
-		// handle request
 		UpdateUserRequest request = GSON.fromJson(getBody(exchange), UpdateUserRequest.class);
 		if (!checkRequest(exchange, request)) { return; } // if
-        
-        Customer updated = new Customer(
-            request.name,
-            request.email,
-            "",
-            request.lastName,
-            request.mailingAddress,
-            "ACTIVE"
-        );
 
-        if (!db.updateUser(updated)) {
-            JsonResponse.send(exchange, 500, Map.of("error", "could not update user"));
-            return;
-        } // if
+		Customer updated = new Customer(
+			request.name,
+			request.email,
+			"",
+			request.lastName,
+			request.mailingAddress,
+			"ACTIVE"
+		);
 
-        JsonResponse.send(exchange, 200, db.getUser(request.email));
-    } // handleUpdateUser
+		if (!db.updateUser(updated)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not update user"));
+			return;
+		} // if
+
+		JsonResponse.send(exchange, 200, db.getUser(request.email));
+
+		if (!EmailResponse.send(EmailResponse.Template.ACCOUNT_UPDATED, updated)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not send account-update email"));
+			return;
+		} // if
+	} // handleUpdateUser
 
     /**
      * Handles a user's favorite movies: 

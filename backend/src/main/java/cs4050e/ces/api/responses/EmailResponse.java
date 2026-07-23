@@ -16,7 +16,8 @@ public class EmailResponse implements Response {
 	/** Template you wish to use for sending an email. */
 	public enum Template {
 		VERIFICATION,
-		PASSWORD_RESET
+		PASSWORD_RESET,
+		ACCOUNT_UPDATED
 	};
 
 	/**
@@ -45,6 +46,32 @@ public class EmailResponse implements Response {
 		buildMailer().sendMail(email);
 		return true;
 	} // send
+
+	/**
+	 * Sends an email to a {@code User} for templates that don't need a code
+ 	* (e.g. account-update notifications).
+	* @param template The email template to use.
+	* @param user The user to send the email to.
+	*/
+	public static boolean send(Template template, User user) {
+		if (!db.userExists(user.getEmail())) {
+			return false;
+		} // if
+
+		Email email;
+		switch (template) {
+			case ACCOUNT_UPDATED:
+				email = EmailTemplates.getAccountUpdatedEmail(user);
+				break;
+			default:
+				return false;
+		} // switch
+
+		buildMailer().sendMail(email);
+		return true;
+	} // send
+
+
 
     /**
 	 * Builds a {@code Mailer} configured to send through the project's
