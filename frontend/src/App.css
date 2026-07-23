@@ -321,3 +321,24 @@
   border-radius: 8px;
   margin-bottom: 0.75rem;
 }
+
+.filter-toggle {
+  font: inherit;
+  color: var(--text-h);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-toggle:hover {
+  border-color: var(--accent-border);
+}
+
+.filter-toggle.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}

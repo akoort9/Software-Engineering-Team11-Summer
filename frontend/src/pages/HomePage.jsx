@@ -15,6 +15,7 @@ export default function HomePage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
+  const [showSuggested, setShowSuggested] = useState(false)
 
   useEffect(() => {
     fetchMovies()
@@ -24,13 +25,20 @@ export default function HomePage() {
 
   const genres = [...new Set(movies.map((movie) => movie.genre).filter(Boolean))]
 
-  const visibleMovies = movies.filter((movie) => {
-    const matchesTitle = movie.title
-      .toLowerCase()
-      .includes(search.toLowerCase())
-    const matchesGenre = !genre || movie.genre === genre
-    return matchesTitle && matchesGenre
-  })
+ const favoritedGenres = new Set(
+  movies
+    .filter((movie) => isFavorited(movie.id))
+    .map((movie) => movie.genre)
+    .filter(Boolean)
+)
+
+const visibleMovies = movies.filter((movie) => {
+  const matchesTitle = movie.title.toLowerCase().includes(search.toLowerCase())
+  const matchesGenre = !genre || movie.genre === genre
+  const matchesSuggested =
+    !showSuggested || (favoritedGenres.has(movie.genre) && !isFavorited(movie.id))
+  return matchesTitle && matchesGenre && matchesSuggested
+})
 
   const sortedMovies = [...visibleMovies].sort(
   (a, b) => Number(Boolean(b.status)) - Number(Boolean(a.status))
@@ -81,6 +89,14 @@ return (
       <select disabled>
         <option>Filter by date (coming soon)</option>
       </select>
+
+      <button
+        type="button"
+        className={`filter-toggle${showSuggested ? ' active' : ''}`}
+        onClick={() => setShowSuggested((prev) => !prev)}
+      >
+        Suggested
+      </button>
 
       {error && <p>{error}</p>}
 
