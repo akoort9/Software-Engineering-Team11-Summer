@@ -82,4 +82,49 @@ public class EmailTemplates {
                 "contact support immediately.")
             .buildEmail();
     } // getCardAddedEmail
+
+    /**
+     * Creates a card-updated confirmation email.
+     * @param user The user whose card was updated.
+     * @param card The card's new details.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getCardUpdatedEmail(User user, Card card) {
+        String lastFour = lastFourOf(card.getCardNumber());
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Card updated")
+            .withPlainText("Hello " + user.getName() + ", the card ending in " + lastFour +
+                " on your account was just updated. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getCardUpdatedEmail
+
+    /**
+     * Creates a card-removed confirmation email.
+     * @param user The user whose card was removed.
+     * @param card The card that was removed.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getCardRemovedEmail(User user, Card card) {
+        String lastFour = lastFourOf(card.getCardNumber());
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Card removed")
+            .withPlainText("Hello " + user.getName() + ", the card ending in " + lastFour +
+                " was just removed from your account. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getCardRemovedEmail
+
+    /** Masks a card number down to its last 4 digits. */
+    private static String lastFourOf(String cardNumber) {
+        return cardNumber != null && cardNumber.length() >= 4
+            ? cardNumber.substring(cardNumber.length() - 4)
+            : "????";
+    } // lastFourOf
+
+
 } // EmailTemplates

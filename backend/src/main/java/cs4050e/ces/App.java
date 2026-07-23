@@ -425,9 +425,22 @@ public class App {
 		if (method.equals("DELETE")) {
 			CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
 			if (!checkRequest(exchange, deleteRequest)) { return; } // if
-			boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
-            JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
-            return;
+
+			User deleteUser = db.getUser(deleteRequest.email);
+			Card cardToRemove = db.getCards(deleteUser).stream()
+				.filter(c -> c.getId() == deleteRequest.cardId)
+				.findFirst()
+				.orElse(null);
+
+			boolean removed = db.removeCard(deleteUser, deleteRequest.cardId);
+			JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
+
+			if (removed && cardToRemove != null
+					&& !EmailResponse.send(EmailResponse.Template.CARD_REMOVED, deleteUser, cardToRemove)) {
+				JsonResponse.send(exchange, 500, Map.of("error", "could not send card-removed email"));
+				return;
+			} // if
+			return;
 		} else {
 			request = GSON.fromJson(body, UpdateCardRequest.class);
 			if (!checkRequest(exchange, request)) { return; } // if
@@ -442,11 +455,16 @@ public class App {
         Card card = new Card(request.cardNumber, request.billingAddress, year, month);
 
         // update an existing card (PUT)
-        if (exchange.getRequestMethod().equals("PUT")) {
-            boolean updated = db.updateCard(user, request.cardId, card);
-            JsonResponse.send(exchange, updated ? 200 : 500, Map.of("ok", updated));
-            return;
-        } // if
+		if (exchange.getRequestMethod().equals("PUT")) {
+			boolean updated = db.updateCard(user, request.cardId, card);
+			JsonResponse.send(exchange, updated ? 200 : 500, Map.of("ok", updated));
+
+			if (updated && !EmailResponse.send(EmailResponse.Template.CARD_UPDATED, user, card)) {
+				JsonResponse.send(exchange, 500, Map.of("error", "could not send card-updated email"));
+				return;
+			} // if
+			return;
+		} // if
 
         // add a new card (POST)
 		List<Card> existing = db.getCards(user);

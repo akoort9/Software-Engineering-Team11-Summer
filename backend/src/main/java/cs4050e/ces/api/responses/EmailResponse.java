@@ -18,7 +18,9 @@ public class EmailResponse implements Response {
 		VERIFICATION,
 		PASSWORD_RESET,
 		ACCOUNT_UPDATED,
-		CARD_ADDED
+		CARD_ADDED,
+		CARD_UPDATED,
+		CARD_REMOVED
 	};
 	/**
 	 * Sends an email to a {@code User} with a given code.
@@ -87,6 +89,12 @@ public class EmailResponse implements Response {
 			case CARD_ADDED:
 				email = EmailTemplates.getCardAddedEmail(user, card);
 				break;
+			case CARD_UPDATED:
+				email = EmailTemplates.getCardUpdatedEmail(user, card);
+				break;
+			case CARD_REMOVED:
+				email = EmailTemplates.getCardRemovedEmail(user, card);
+				break;
 			default:
 				return false;
 		} // switch
@@ -94,7 +102,6 @@ public class EmailResponse implements Response {
 		buildMailer().sendMail(email);
 		return true;
 	} // send
-
 
     /**
 	 * Builds a {@code Mailer} configured to send through the project's
