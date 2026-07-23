@@ -94,18 +94,25 @@ return (
     return (
       <Fragment key={movie.id}>
         {isFirstComingSoon && <div className="grid-divider" />}
-        <article className="movie-card">
-          <div className="movie-card-header">
-            <h2>
-              <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-            </h2>
-            {canFavorite && (
-              <FavoriteStar
-                favorited={isFavorited(movie.id)}
-                onClick={() => toggleFavorite(movie.id)}
-              />
-            )}
-          </div>
+       <article className="movie-card">
+  {movie.poster && (
+    <img
+      className="movie-poster"
+      src={movie.poster}
+      alt={`${movie.title} poster`}
+    />
+  )}
+    <div className="movie-card-header">
+      <h2>
+        <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+      </h2>
+        {canFavorite && (
+        <FavoriteStar
+          favorited={isFavorited(movie.id)}
+          onClick={() => toggleFavorite(movie.id)}
+        />
+     )}
+    </div>
           <p className="movie-genre">{movie.genre}</p>
           <p className="movie-status">{statusLabel(movie.status)}</p>
           {getShowtimes(movie).length > 0 && movie.status ? (

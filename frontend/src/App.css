@@ -313,3 +313,11 @@
   border-top: 1px solid var(--border);
   margin: 0.75rem 0;
 }
+
+.movie-poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
