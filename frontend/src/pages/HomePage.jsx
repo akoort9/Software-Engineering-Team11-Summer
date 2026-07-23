@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
@@ -6,6 +6,7 @@ import { getShowtimes } from '../utils/showtimes.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { useFavorites } from '../hooks/useFavorites.js'
 import FavoriteStar from '../components/FavoriteStar.jsx'
+
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -30,6 +31,10 @@ export default function HomePage() {
     const matchesGenre = !genre || movie.genre === genre
     return matchesTitle && matchesGenre
   })
+
+  const sortedMovies = [...visibleMovies].sort(
+  (a, b) => Number(Boolean(b.status)) - Number(Boolean(a.status))
+)
 
 return (
   <main className="home">
@@ -82,40 +87,48 @@ return (
       {!error && visibleMovies.length === 0 && <p>No movies found.</p>}
 
       <div className="movie-grid">
-        {visibleMovies.map((movie) => (
-          <article key={movie.id} className="movie-card">
-            <div className="movie-card-header">
-              <h2>
-                <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-              </h2>
-              {canFavorite && (
-                <FavoriteStar
-                  favorited={isFavorited(movie.id)}
-                  onClick={() => toggleFavorite(movie.id)}
-                />
-              )}
-            </div>
-              <p className="movie-genre">{movie.genre}</p>
-              <p className="movie-status">{statusLabel(movie.status)}</p>
-	      {(getShowtimes(movie).length > 0) && movie.status ? (  
-		<ul className="showtimes">
-		    {getShowtimes(movie).map((time) => (
-			<li key={time}>
-			    <Link
-				to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
-				className="showtime"
-			    >
-				{time}
-			    </Link>
-			</li>
-		  ))}
-		</ul>
-	      ) : (
-		  <p>No showtimes listed.</p>
-	      )}
-          </article>
-        ))}
-      </div>
+  {sortedMovies.map((movie, index) => {
+    const isFirstComingSoon =
+      !movie.status && (index === 0 || sortedMovies[index - 1].status)
+
+    return (
+      <Fragment key={movie.id}>
+        {isFirstComingSoon && <div className="grid-divider" />}
+        <article className="movie-card">
+          <div className="movie-card-header">
+            <h2>
+              <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+            </h2>
+            {canFavorite && (
+              <FavoriteStar
+                favorited={isFavorited(movie.id)}
+                onClick={() => toggleFavorite(movie.id)}
+              />
+            )}
+          </div>
+          <p className="movie-genre">{movie.genre}</p>
+          <p className="movie-status">{statusLabel(movie.status)}</p>
+          {getShowtimes(movie).length > 0 && movie.status ? (
+            <ul className="showtimes">
+              {getShowtimes(movie).map((time) => (
+                <li key={time}>
+                  <Link
+                    to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
+                    className="showtime"
+                  >
+                    {time}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No showtimes listed.</p>
+          )}
+        </article>
+      </Fragment>
+    )
+  })}
+</div>
 
       {user ? (
         <p>
