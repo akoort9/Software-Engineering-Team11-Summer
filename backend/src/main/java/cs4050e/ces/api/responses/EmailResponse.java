@@ -5,6 +5,7 @@ import org.simplejavamail.api.mailer.Mailer;
 import org.simplejavamail.api.mailer.config.TransportStrategy;
 import org.simplejavamail.mailer.MailerBuilder;
 
+import cs4050e.ces.db.payment.Card;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.users.User;
 
@@ -13,13 +14,12 @@ public class EmailResponse implements Response {
 	/** Access to the database. */
 	private static final DataHandler db = DataHandler.getInstance();
 
-	/** Template you wish to use for sending an email. */
 	public enum Template {
 		VERIFICATION,
 		PASSWORD_RESET,
-		ACCOUNT_UPDATED
+		ACCOUNT_UPDATED,
+		CARD_ADDED
 	};
-
 	/**
 	 * Sends an email to a {@code User} with a given code.
 	 * @param template The email template to use.
@@ -71,6 +71,29 @@ public class EmailResponse implements Response {
 		return true;
 	} // send
 
+	/**
+	 * Sends an email to a {@code User} confirming a new payment card was added.
+	 * @param template The email template to use (must be CARD_ADDED).
+	 * @param user The user to send the email to.
+	 * @param card The card that was added.
+	 */
+	public static boolean send(Template template, User user, Card card) {
+		if (!db.userExists(user.getEmail())) {
+			return false;
+		} // if
+
+		Email email;
+		switch (template) {
+			case CARD_ADDED:
+				email = EmailTemplates.getCardAddedEmail(user, card);
+				break;
+			default:
+				return false;
+		} // switch
+
+		buildMailer().sendMail(email);
+		return true;
+	} // send
 
 
     /**

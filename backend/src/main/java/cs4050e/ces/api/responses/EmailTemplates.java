@@ -4,6 +4,7 @@ import org.simplejavamail.api.email.Email;
 import org.simplejavamail.email.EmailBuilder;
 
 import cs4050e.ces.db.users.User;
+import cs4050e.ces.db.payment.Card;
 
 /** Holds templates of emails to send. */
 public class EmailTemplates {
@@ -61,4 +62,24 @@ public class EmailTemplates {
                 "contact support immediately.")
             .buildEmail();
     } // getAccountUpdatedEmail
+
+    /**
+     * Creates a card-added confirmation email.
+     * @param user The user whose account the card was added to.
+     * @param card The card that was added.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getCardAddedEmail(User user, Card card) {
+        String number = card.getCardNumber();
+        String lastFour = number.length() >= 4 ? number.substring(number.length() - 4) : number;
+
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: New card added")
+            .withPlainText("Hello " + user.getName() + ", a new card ending in " + lastFour +
+                " was just added to your account. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getCardAddedEmail
 } // EmailTemplates

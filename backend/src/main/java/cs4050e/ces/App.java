@@ -449,14 +449,19 @@ public class App {
         } // if
 
         // add a new card (POST)
-        List<Card> existing = db.getCards(user);
-        if (existing != null && existing.size() >= Customer.MAX_CARDS) {
-            JsonResponse.send(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
-            return;
-        } // if
+		List<Card> existing = db.getCards(user);
+		if (existing != null && existing.size() >= Customer.MAX_CARDS) {
+			JsonResponse.send(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
+			return;
+		} // if
 
-        boolean ok = db.addCard(user, card);
-        JsonResponse.send(exchange, ok ? 201 : 500, Map.of("ok", ok));
+		boolean ok = db.addCard(user, card);
+		JsonResponse.send(exchange, ok ? 201 : 500, Map.of("ok", ok));
+
+		if (ok && !EmailResponse.send(EmailResponse.Template.CARD_ADDED, user, card)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not send card-added email"));
+			return;
+		} // if
 	} // handlePostCards
 
     /**
