@@ -4,6 +4,7 @@ import org.simplejavamail.api.email.Email;
 import org.simplejavamail.email.EmailBuilder;
 
 import cs4050e.ces.db.users.User;
+import cs4050e.ces.db.payment.Card;
 
 /** Holds templates of emails to send. */
 public class EmailTemplates {
@@ -15,14 +16,20 @@ public class EmailTemplates {
 
     /** 
      * The template you wish to use for sending an email.
-     * {@code EDIT_PROFILE} - Edited profile email.
+     * {@code ACCOUNT_UPDATED} - Account update email.
+     * {@code CARD_ADDED} - Card added email.
+     * {@code CARD_REMOVED} - Card removed email.
+     * {@code CARD_UPDATED} - Card updated email.
      * {@code PASSWORD_RESET} - Password reset email.
      * {@code VERIFICATION} - Account verification email.
      */
 	public enum Template {
-        EDIT_PROFILE,
+        ACCOUNT_UPDATED,
+        CARD_ADDED,
+        CARD_REMOVED,
+		CARD_UPDATED,
         PASSWORD_RESET,
-		VERIFICATION
+		VERIFICATION,
 	};
 
     /**
@@ -59,18 +66,83 @@ public class EmailTemplates {
     } // getPasswordResetEmail
 
     /**
-     * Creates an edited profile email.
-     * @param user The user to send it to.
+     * Creates an account-update notification email.
+     * @param user The user whose account was updated.
      * @return An {@code Email} ready to send.
      */
-    static Email getEditProfileEmail(User user) {
+    static Email getAccountUpdatedEmail(User user) {
         return EmailBuilder.startingBlank()
-			.from(CES_NAME, CES_FROM_ADDRESS)
-			.to(user.getName(), user.getEmail())
-			.withSubject("Cinema E-booking System: Your profile details were changed.")
-			.withPlainText("Hello " + user.getName() + ", your profile details " +
-				"were changed recently. If you made these changes, you can safely " +
-                "ignore this email.")
-			.buildEmail();
-    } // getPasswordResetEmail
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Your account was updated")
+            .withPlainText("Hello " + user.getName() + ", this is a confirmation that your " +
+                "account details were just updated. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getAccountUpdatedEmail
+
+    /**
+     * Creates a card-added confirmation email.
+     * @param user The user whose account the card was added to.
+     * @param card The card that was added.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getCardAddedEmail(User user, Card card) {
+        String number = card.getCardNumber();
+        String lastFour = number.length() >= 4 ? number.substring(number.length() - 4) : number;
+
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: New card added")
+            .withPlainText("Hello " + user.getName() + ", a new card ending in " + lastFour +
+                " was just added to your account. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getCardAddedEmail
+
+    /**
+     * Creates a card-updated confirmation email.
+     * @param user The user whose card was updated.
+     * @param card The card's new details.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getCardUpdatedEmail(User user, Card card) {
+        String lastFour = lastFourOf(card.getCardNumber());
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Card updated")
+            .withPlainText("Hello " + user.getName() + ", the card ending in " + lastFour +
+                " on your account was just updated. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getCardUpdatedEmail
+
+    /**
+     * Creates a card-removed confirmation email.
+     * @param user The user whose card was removed.
+     * @param card The card that was removed.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getCardRemovedEmail(User user, Card card) {
+        String lastFour = lastFourOf(card.getCardNumber());
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Card removed")
+            .withPlainText("Hello " + user.getName() + ", the card ending in " + lastFour +
+                " was just removed from your account. If you didn't make this change, please " +
+                "contact support immediately.")
+            .buildEmail();
+    } // getCardRemovedEmail
+
+    /** Masks a card number down to its last 4 digits. */
+    private static String lastFourOf(String cardNumber) {
+        return cardNumber != null && cardNumber.length() >= 4
+            ? cardNumber.substring(cardNumber.length() - 4)
+            : "????";
+    } // lastFourOf
+
+
 } // EmailTemplates

@@ -238,7 +238,7 @@ public class App {
 
 		JsonResponse.send(exchange, 201, Map.of("user", user, "verificationCode", code));
 
-		if(!EmailResponse.send(EmailTemplates.Template.VERIFICATION, user, code)) {
+		if(!EmailResponse.send(EmailTemplates.Template.VERIFICATION, user, code, null)) {
 			JsonResponse.send(exchange, 500, Map.of("error", "could not send verification email"));
 			return;
 		} // if
@@ -250,26 +250,30 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleUpdateUser(HttpExchange exchange) throws IOException {
-		// handle request
 		UpdateUserRequest request = GSON.fromJson(getBody(exchange), UpdateUserRequest.class);
 		if (!checkRequest(exchange, request)) { return; } // if
-        
-        Customer updated = new Customer(
-            request.name,
-            request.email,
-            "",
-            request.lastName,
-            request.mailingAddress,
-            "ACTIVE"
-        );
 
-        if (!db.updateUser(updated)) {
-            JsonResponse.send(exchange, 500, Map.of("error", "could not update user"));
-            return;
-        } // if
+		Customer updated = new Customer(
+			request.name,
+			request.email,
+			"",
+			request.lastName,
+			request.mailingAddress,
+			"ACTIVE"
+		);
 
-        JsonResponse.send(exchange, 200, db.getUser(request.email));
-    } // handleUpdateUser
+		if (!db.updateUser(updated)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not update user"));
+			return;
+		} // if
+
+		JsonResponse.send(exchange, 200, db.getUser(request.email));
+
+		if (!EmailResponse.send(EmailTemplates.Template.ACCOUNT_UPDATED, updated, null, null)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not send account-update email"));
+			return;
+		} // if
+	} // handleUpdateUser
 
     /**
      * Handles a user's favorite movies: 
@@ -421,9 +425,22 @@ public class App {
 		if (method.equals("DELETE")) {
 			CardRequest deleteRequest = GSON.fromJson(body, CardRequest.class);
 			if (!checkRequest(exchange, deleteRequest)) { return; } // if
-			boolean removed = db.removeCard(db.getUser(deleteRequest.email), deleteRequest.cardId);
-            JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
-            return;
+
+			User deleteUser = db.getUser(deleteRequest.email);
+			Card cardToRemove = db.getCards(deleteUser).stream()
+				.filter(c -> c.getId() == deleteRequest.cardId)
+				.findFirst()
+				.orElse(null);
+
+			boolean removed = db.removeCard(deleteUser, deleteRequest.cardId);
+			JsonResponse.send(exchange, removed ? 200 : 500, Map.of("ok", removed));
+
+			if (removed && cardToRemove != null
+					&& !EmailResponse.send(EmailTemplates.Template.CARD_REMOVED, deleteUser, cardToRemove)) {
+				JsonResponse.send(exchange, 500, Map.of("error", "could not send card-removed email"));
+				return;
+			} // if
+			return;
 		} else {
 			request = GSON.fromJson(body, UpdateCardRequest.class);
 			if (!checkRequest(exchange, request)) { return; } // if
@@ -438,21 +455,31 @@ public class App {
         Card card = new Card(request.cardNumber, request.billingAddress, year, month);
 
         // update an existing card (PUT)
-        if (exchange.getRequestMethod().equals("PUT")) {
-            boolean updated = db.updateCard(user, request.cardId, card);
-            JsonResponse.send(exchange, updated ? 200 : 500, Map.of("ok", updated));
-            return;
-        } // if
+		if (exchange.getRequestMethod().equals("PUT")) {
+			boolean updated = db.updateCard(user, request.cardId, card);
+			JsonResponse.send(exchange, updated ? 200 : 500, Map.of("ok", updated));
+
+			if (updated && !EmailResponse.send(EmailTemplates.Template.CARD_UPDATED, user, card)) {
+				JsonResponse.send(exchange, 500, Map.of("error", "could not send card-updated email"));
+				return;
+			} // if
+			return;
+		} // if
 
         // add a new card (POST)
-        List<Card> existing = db.getCards(user);
-        if (existing != null && existing.size() >= Customer.MAX_CARDS) {
-            JsonResponse.send(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
-            return;
-        } // if
+		List<Card> existing = db.getCards(user);
+		if (existing != null && existing.size() >= Customer.MAX_CARDS) {
+			JsonResponse.send(exchange, 400, Map.of("error", "card limit reached (max " + Customer.MAX_CARDS + ")"));
+			return;
+		} // if
 
-        boolean ok = db.addCard(user, card);
-        JsonResponse.send(exchange, ok ? 201 : 500, Map.of("ok", ok));
+		boolean ok = db.addCard(user, card);
+		JsonResponse.send(exchange, ok ? 201 : 500, Map.of("ok", ok));
+
+		if (ok && !EmailResponse.send(EmailTemplates.Template.CARD_ADDED, user, card)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not send card-added email"));
+			return;
+		} // if
 	} // handlePostCards
 
     /**
@@ -553,7 +580,7 @@ public class App {
 		System.out.println("[email] Password reset code for " + request.email + ": " + code);
 
 		// sending the email
-		if (!EmailResponse.send(EmailTemplates.Template.PASSWORD_RESET, user, code)) {
+		if (!EmailResponse.send(EmailTemplates.Template.PASSWORD_RESET, user, code, null)) {
 			System.err.println("[email] failed to send password reset email to " + request.email);
 		} // if
 

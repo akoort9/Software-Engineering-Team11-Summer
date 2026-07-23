@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { statusLabel } from '../utils/statusLabel.js'
@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext.jsx'
 import { useFavorites } from '../hooks/useFavorites.js'
 import FavoriteStar from '../components/FavoriteStar.jsx'
 
+
 export default function HomePage() {
   const { user, logout } = useAuth()
   const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
@@ -14,6 +15,7 @@ export default function HomePage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
+  const [showSuggested, setShowSuggested] = useState(false)
 
   useEffect(() => {
     fetchMovies()
@@ -23,17 +25,50 @@ export default function HomePage() {
 
   const genres = [...new Set(movies.map((movie) => movie.genre).filter(Boolean))]
 
-  const visibleMovies = movies.filter((movie) => {
-    const matchesTitle = movie.title
-      .toLowerCase()
-      .includes(search.toLowerCase())
-    const matchesGenre = !genre || movie.genre === genre
-    return matchesTitle && matchesGenre
-  })
+ const favoritedGenres = new Set(
+  movies
+    .filter((movie) => isFavorited(movie.id))
+    .map((movie) => movie.genre)
+    .filter(Boolean)
+)
 
-  return (
-    <main>
+const visibleMovies = movies.filter((movie) => {
+  const matchesTitle = movie.title.toLowerCase().includes(search.toLowerCase())
+  const matchesGenre = !genre || movie.genre === genre
+  const matchesSuggested =
+    !showSuggested || (favoritedGenres.has(movie.genre) && !isFavorited(movie.id))
+  return matchesTitle && matchesGenre && matchesSuggested
+})
+
+  const sortedMovies = [...visibleMovies].sort(
+  (a, b) => Number(Boolean(b.status)) - Number(Boolean(a.status))
+)
+
+return (
+  <main className="home">
+    <header className="top-bar">
       <h1>Movies</h1>
+      <nav className="auth-nav">
+        {user ? (
+          <>
+            <span>
+              Welcome, {user.name || user.email}
+              {user.isAdmin && ' (admin)'}
+            </span>
+            {user.isAdmin && <Link to="/admin">Admin</Link>}
+            <Link to="/edit-profile">Edit Profile</Link>
+            <button type="button" onClick={logout}>
+              Log Out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">Log In</Link>
+            <Link to="/register">Register</Link>
+          </>
+        )}
+      </nav>
+    </header>
 
       <input
         type="text"
@@ -55,45 +90,68 @@ export default function HomePage() {
         <option>Filter by date (coming soon)</option>
       </select>
 
+      <button
+        type="button"
+        className={`filter-toggle${showSuggested ? ' active' : ''}`}
+        onClick={() => setShowSuggested((prev) => !prev)}
+      >
+        Suggested
+      </button>
+
       {error && <p>{error}</p>}
 
       {!error && visibleMovies.length === 0 && <p>No movies found.</p>}
 
       <div className="movie-grid">
-        {visibleMovies.map((movie) => (
-          <article key={movie.id} className="movie-card">
-            <div className="movie-card-header">
-              <h2>
-                <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
-              </h2>
-              {canFavorite && (
-                <FavoriteStar
-                  favorited={isFavorited(movie.id)}
-                  onClick={() => toggleFavorite(movie.id)}
-                />
-              )}
-            </div>
-              <p className="movie-genre">{movie.genre}</p>
-              <p className="movie-status">{statusLabel(movie.status)}</p>
-	      {(getShowtimes(movie).length > 0) && movie.status ? (  
-		<ul className="showtimes">
-		    {getShowtimes(movie).map((time) => (
-			<li key={time}>
-			    <Link
-				to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
-				className="showtime"
-			    >
-				{time}
-			    </Link>
-			</li>
-		  ))}
-		</ul>
-	      ) : (
-		  <p>No showtimes listed.</p>
-	      )}
-          </article>
-        ))}
-      </div>
+  {sortedMovies.map((movie, index) => {
+    const isFirstComingSoon =
+      !movie.status && (index === 0 || sortedMovies[index - 1].status)
+
+    return (
+      <Fragment key={movie.id}>
+        {isFirstComingSoon && <div className="grid-divider" />}
+       <article className="movie-card">
+  {movie.poster && (
+    <img
+      className="movie-poster"
+      src={movie.poster}
+      alt={`${movie.title} poster`}
+    />
+  )}
+    <div className="movie-card-header">
+      <h2>
+        <Link to={`/movies/${movie.id}`}>{movie.title}</Link>
+      </h2>
+        {canFavorite && (
+        <FavoriteStar
+          favorited={isFavorited(movie.id)}
+          onClick={() => toggleFavorite(movie.id)}
+        />
+     )}
+    </div>
+          <p className="movie-genre">{movie.genre}</p>
+          <p className="movie-status">{statusLabel(movie.status)}</p>
+          {getShowtimes(movie).length > 0 && movie.status ? (
+            <ul className="showtimes">
+              {getShowtimes(movie).map((time) => (
+                <li key={time}>
+                  <Link
+                    to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
+                    className="showtime"
+                  >
+                    {time}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No showtimes listed.</p>
+          )}
+        </article>
+      </Fragment>
+    )
+  })}
+</div>
 
       {user ? (
         <p>
@@ -111,10 +169,11 @@ export default function HomePage() {
           </button>
         </p>
       ) : (
-        <p>
-          <Link to="/booking">Book Seats</Link> |{' '}
-          <Link to="/login">Log In</Link> | <Link to="/register">Register</Link>
-        </p>
+        <div className="book-seats-cta">
+          <Link to="/booking" className="book-seats-btn">
+            Book Seats
+          </Link>
+    </div>
       )}
     </main>
   )

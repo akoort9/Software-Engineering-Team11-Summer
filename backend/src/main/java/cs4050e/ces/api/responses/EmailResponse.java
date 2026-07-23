@@ -5,6 +5,7 @@ import org.simplejavamail.api.mailer.Mailer;
 import org.simplejavamail.api.mailer.config.TransportStrategy;
 import org.simplejavamail.mailer.MailerBuilder;
 
+import cs4050e.ces.db.payment.Card;
 import cs4050e.ces.api.responses.EmailTemplates.Template;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.users.User;
@@ -18,32 +19,99 @@ public class EmailResponse implements Response {
 	 * Sends an email to a {@code User} with a given code.
 	 * @param template The email template to use.
 	 * @param user The user to send the email to.
-	 * @param code The user's verification code. This can be null
-	 * if the email does not require it (EDIT_PROFILE)
+	 * @param code The user's verification code. This can be null unless needed.
+	 * @param code The card being modified. This can be null unless needed.
 	 */
-	public static boolean send(Template template, User user, String code) {
-		if (!db.userExists(user.getEmail())) {
+	public static boolean send(EmailTemplates.Template template, User user, String code, Card card) {
+		// error handling
+		if (template == null ||
+			user == null ||
+			!db.userExists(user.getEmail())) {
 			return false;
 		} // if
 
 		Email email = null;
 		switch(template) {
 			case VERIFICATION:
-				if (!code.isEmpty()) {
-					email = EmailTemplates.getVerificationEmail(user, code);
-					break;
-				} else {
-					return false;
-				} // if-else
+				if (code.isEmpty()) { return false; }
+				email = EmailTemplates.getVerificationEmail(user, code);
+				break;
 			case PASSWORD_RESET:
-				if (!code.isEmpty()) {
-					email = EmailTemplates.getPasswordResetEmail(user, code);
-					break;
-				} else {
-					return false;
-				} // if-else
-			case EDIT_PROFILE:
-				email = EmailTemplates.getEditProfileEmail(user);
+				if (code.isEmpty()) { return false; }
+				email = EmailTemplates.getPasswordResetEmail(user, code);
+				break;
+			case ACCOUNT_UPDATED:
+				email = EmailTemplates.getAccountUpdatedEmail(user);
+				break;
+			case CARD_ADDED:
+				if (card == null) { return false; }
+				email = EmailTemplates.getCardAddedEmail(user, null);
+				break;
+			case CARD_REMOVED:
+				if (card == null) { return false; }
+				email = EmailTemplates.getCardRemovedEmail(user, null);
+				break;
+			case CARD_UPDATED:
+				if (card == null) { return false; }
+				email = EmailTemplates.getCardUpdatedEmail(user, null);
+				break;
+			default:
+				return false;
+		} // switch
+
+		if (email == null) {
+			return false;
+		} // if
+
+		buildMailer().sendMail(email);
+		return true;
+	} // send
+
+	/**
+	 * Sends an email to a {@code User} for templates that don't need a code
+ 	* (e.g. account-update notifications).
+	* @param template The email template to use.
+	* @param user The user to send the email to.
+	*/
+	public static boolean send(Template template, User user) {
+		if (!db.userExists(user.getEmail())) {
+			return false;
+		} // if
+
+		Email email;
+		switch (template) {
+			case ACCOUNT_UPDATED:
+				email = EmailTemplates.getAccountUpdatedEmail(user);
+				break;
+			default:
+				return false;
+		} // switch
+
+		buildMailer().sendMail(email);
+		return true;
+	} // send
+
+	/**
+	 * Sends an email to a {@code User} confirming a new payment card was added.
+	 * @param template The email template to use (must be CARD_ADDED).
+	 * @param user The user to send the email to.
+	 * @param card The card that was added.
+	 */
+	public static boolean send(Template template, User user, Card card) {
+		if (!db.userExists(user.getEmail())) {
+			return false;
+		} // if
+
+		Email email;
+		switch (template) {
+			case CARD_ADDED:
+				email = EmailTemplates.getCardAddedEmail(user, card);
+				break;
+			case CARD_UPDATED:
+				email = EmailTemplates.getCardUpdatedEmail(user, card);
+				break;
+			case CARD_REMOVED:
+				email = EmailTemplates.getCardRemovedEmail(user, card);
 				break;
 			default:
 				return false;
