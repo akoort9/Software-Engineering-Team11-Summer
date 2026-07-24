@@ -14,6 +14,7 @@ import java.io.IOException;
 
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.theatre.Movie;
+import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.users.User;
 import cs4050e.ces.db.users.Administrator;
 import cs4050e.ces.db.users.Customer;
@@ -670,7 +671,7 @@ public class DataHandler {
 	 * @param movie The movie.
 	 * @return The database id, or {@code -1} if not found.
 	 */
-	private int resolveMovieId(Movie movie) {
+	public int resolveMovieId(Movie movie) {
 		if (movie == null) {
 			return -1;
 		} else if (movie.getId() != -1) {
@@ -700,7 +701,7 @@ public class DataHandler {
 			System.err.println("userExists: " + sqle);
 			return false;
 		} // try-catch
-    } // exists
+    } // userExists
 
 	/**
 	 * Stores an email-verification code for the user with the given email.
@@ -945,7 +946,37 @@ public class DataHandler {
 		return true;
 	} // seed
 
+	/**
+	 * Checks if a showroom exists.
+	 * @param id The database id of the showroom.
+	 * @return {@code true} if it does, {@code false} otherwise.
+	 */
+	public boolean showroomExists(int id) {
+		String sql = "SELECT * FROM showrooms WHERE id = " + id;
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+				while (rs.next()) {
+					if (rs.getInt("id") == id) {
+						return true;
+					} // if
+				} // while
+				return false;
+		} catch (SQLException sqle) {
+			System.err.println("showroomExists: " + sqle);
+			return false;
+		} // try-catch
+	} // showroomExists
+
 	public double getTicketPrice(Ticket.TicketType type) {
 		throw new UnsupportedOperationException("method not yet implemented");
 	} // getTicketType
+
+    public boolean addShowtime(Showtime showtime) {
+        throw new UnsupportedOperationException("Unimplemented method 'addShowtime'");
+    } // addShowtime
+
+    public List<Showtime> getShowtimes() {
+        throw new UnsupportedOperationException("Unimplemented method 'getShowtimes'");
+    } // getShowtimes
 } // DataHandler

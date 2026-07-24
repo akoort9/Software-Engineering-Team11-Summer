@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +20,7 @@ import cs4050e.ces.api.requests.*;
 import cs4050e.ces.api.responses.*;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
+import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.payment.Card;
 import cs4050e.ces.db.users.*;
 
@@ -60,6 +62,7 @@ public class App {
 		HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
 		server.createContext("/api/movies", App::handleMovies);
+		server.createContext("/api/showtimes", App::handleShowtimes);
 		server.createContext("/api/user", App::handleUsers);
 		server.createContext("/api/favorites", App::handleFavorites);
 		server.createContext("/api/cards", App::handleCards);
@@ -127,18 +130,87 @@ public class App {
 		MovieRequest request = GSON.fromJson(getBody(exchange), MovieRequest.class);
 		if (!checkRequest(exchange, request)) { return; } // if
 
-		// only the title comes from the user right now; everything else defaults to empty
-		Movie movie = new Movie(request.title, "", "", "", "", 0, false);
-		boolean saved = db.addMovie(movie);
+		boolean saved = db.addMovie(request.movie);
 
 		if (!saved) {
 			JsonResponse.send(exchange, 500, Map.of("error", "could not save movie"));
 			return;
 		} // if
 
-		System.err.println("We get here.");
-		JsonResponse.send(exchange, 201, movie);
+		JsonResponse.send(exchange, 201, request.movie);
     } // handlePostMovie
+
+	/**
+     * Routes requests to {@code /api/showtimes} based on HTTP method.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleShowtimes(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+		} // if
+		else if (method.equals("GET")) {
+			handleGetShowtimes(exchange);
+		} // elif
+		else if (method.equals("POST")) {
+			handlePostShowtime(exchange);
+		} // elif
+		else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+		} // else
+    } // handleShowtimes
+
+	/**
+     * Returns showtimes.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleGetShowtimes(HttpExchange exchange) throws IOException {
+		List<Showtime> showtimes = db.getShowtimes();
+
+		if (showtimes == null) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
+			return;
+		} else {
+			JsonResponse.send(exchange, 200, showtimes);
+		} // if-else
+    } // handleGetShowtimes
+
+	/**
+     * Adds showtimes.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handlePostShowtime(HttpExchange exchange) throws IOException {
+		// handle request
+		ScheduleMovieRequest request = GSON.fromJson(getBody(exchange), ScheduleMovieRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		try {
+			Showtime showtime = new Showtime(
+			db.resolveMovieId(request.movie),
+			request.showroomID,
+			request.getStartTime(),
+			request.getEndTime());
+
+			if (!db.addShowtime(showtime)) {
+				JsonResponse.send(exchange, 500, Map.of("error", "could not schedule movie."));
+				return;
+			} // if
+
+			JsonResponse.send(exchange, 201, showtime);
+		} catch (ParseException pe) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid format"));
+			return;
+		} // try-catch
+    } // handlePostShowtimes
 
 	/**
      * Routes requests to {@code /api/users} based on HTTP method.
@@ -186,7 +258,7 @@ public class App {
 		} // if
 
 		JsonResponse.send(exchange, 200, db.getUser(email));
-    } // handleGetMovies
+    } // handleGetUser
 
 	/**
      * Reads a user from the request body, builds a {@code User},
