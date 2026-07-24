@@ -30,7 +30,7 @@ public class MovieRequest implements Request {
             JsonResponse.send(exchange, 404, Map.of("error", "user not found"));
             return false;
         } else if (!db.getUser(adminEmail).isAdmin()) {
-            JsonResponse.send(exchange, 403, Map.of("error", "adding movies requires administrator access"));
+            JsonResponse.send(exchange, 403, Map.of("error", "requires administrator access"));
             return false;
         } else if (this.movie.getTitle().isEmpty()) {
 			JsonResponse.send(exchange, 400, Map.of("error", "title is required"));
