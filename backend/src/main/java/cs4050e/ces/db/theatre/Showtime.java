@@ -1,6 +1,6 @@
 package cs4050e.ces.db.theatre;
 
-import java.util.Date;
+import java.sql.Date;
 
 /**
  * Represents a showtime in a given {@code Showroom}

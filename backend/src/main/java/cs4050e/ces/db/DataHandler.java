@@ -14,6 +14,8 @@ import java.io.IOException;
 
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.theatre.Movie;
+import cs4050e.ces.db.theatre.Seat;
+import cs4050e.ces.db.theatre.Showroom;
 import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.users.User;
 import cs4050e.ces.db.users.Administrator;
@@ -92,6 +94,11 @@ public class DataHandler {
 				stmt.execute(Schema.USERS_TABLE);
 				stmt.execute(Schema.FAVORITE_MOVIES_TABLE);
 				stmt.execute(Schema.PAYMENT_METHODS_TABLE);
+				stmt.execute(Schema.SHOWROOMS_TABLE);
+				stmt.execute(Schema.SEATS_TABLE);
+				stmt.execute(Schema.SHOWTIMES_TABLE);
+				stmt.execute(Schema.TICKETS_TABLE);
+				stmt.execute(Schema.PRICES_TABLE);
 			} // try
 
 			// keep older database files compatible with newer columns
@@ -164,13 +171,7 @@ public class DataHandler {
 		    stmt.executeUpdate();
 
 			// grabbing ID
-			Statement get_id_stmt = conn.createStatement();
-			ResultSet rs = get_id_stmt.executeQuery("SELECT last_insert_rowid()");
-			while (rs.next()) {
-				movie.setId(rs.getInt("last_insert_rowid()"));
-			} // while
-
-			rs.close();
+			movie.setId(getLatestDatabaseId());
 		    return true;
 		} catch (SQLException sqle) {
 	    	System.err.println("addMovie: " + sqle);
@@ -306,13 +307,7 @@ public class DataHandler {
 		    stmt.executeUpdate();
 
 			// grabbing ID
-			Statement get_id_stmt = conn.createStatement();
-			ResultSet rs = get_id_stmt.executeQuery("SELECT last_insert_rowid()");
-			while (rs.next()) {
-				user.setId(rs.getInt("last_insert_rowid()"));
-			} // while
-			
-			rs.close();
+			user.setId(getLatestDatabaseId());
 			return true;
 		} catch (SQLException sqle) {
 	    	System.err.println("addUser: " + sqle);
@@ -968,13 +963,188 @@ public class DataHandler {
 		} // try-catch
 	} // showroomExists
 
+	/**
+	 * Adds a {@code Showroom} to the database.
+	 * @param showroom The showroom to add.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean addShowroom(Showroom showroom) {
+		String sql = Schema.ADD_SHOWROOM;
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, showroom.getName());
+			stmt.setInt(2, showroom.getCapacity());
+	    
+		    stmt.executeUpdate();
+
+			// get database ID
+			showroom.setId(getLatestDatabaseId());
+		    return true;
+		} catch (SQLException sqle) {
+	    	System.err.println("addShowroom: " + sqle);
+		    return false;
+		} // try-catch
+	} // addShowroom
+
+	/**
+	 * Adds a {@code Seat} to the database.
+	 * @param seat The seat to add.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean addSeat(Seat seat) {
+		String sql = Schema.ADD_SEAT;
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, seat.getShowroomId());
+			stmt.setString(2, seat.getRowLabel());
+			stmt.setInt(3, seat.getSeatNumber());
+	    
+		    stmt.executeUpdate();
+
+			// get database ID
+			seat.setId(getLatestDatabaseId());
+		    return true;
+		} catch (SQLException sqle) {
+	    	System.err.println("addSeat: " + sqle);
+		    return false;
+		} // try-catch
+	} // addSeat
+
+	/**
+	 * Returns the database ID of the object just inserted
+	 * into the database.
+	 * @return the database ID, returns -1 if it fails.
+	 * @throws SQLException if the operation fails.
+	 */
+	private int getLatestDatabaseId() throws SQLException {
+		int id = -1;
+		Statement get_id_stmt = conn.createStatement();
+		ResultSet rs = get_id_stmt.executeQuery("SELECT last_insert_rowid()");
+		while (rs.next()) {
+			id = rs.getInt("last_insert_rowid()");
+		} // while
+		rs.close();
+		return id;
+	} // getLatestDatabaseId
+
+	/**
+	 * Sets the price for a given {@code TicketType}.
+	 * @param type The type of ticket.
+	 * @param price The price of the ticket
+	 */
+	public void setTicketPrice(Ticket.TicketType type, double price) {
+		String sql;
+
+		switch (type) {
+			case STANDARD:
+				sql = "UPDATE prices SET standard_price = " + price;
+				break;
+			case CHILD:
+				sql = "UPDATE prices SET child_price = " + price;
+				break;
+			case SENIOR:
+				sql = "UPDATE prices SET senior_price = " + price;
+				break;
+			default:
+				return;
+		} // switch
+
+		// run SQL
+		try (Statement stmt = conn.createStatement()) {
+			stmt.executeUpdate(sql);
+		} catch (SQLException sqle) {
+			System.err.println("setTicketPrice: " + sqle);
+		} // try-catch
+	} // setTicketPrice
+
+	/**
+	 * Returns the price for a given {@code TicketType}
+	 * @param type The type of ticket.
+	 * @return The price of that type.
+	 */
 	public double getTicketPrice(Ticket.TicketType type) {
-		throw new UnsupportedOperationException("method not yet implemented");
+		String col;
+		double price = 0;
+
+		switch (type) {
+			case STANDARD:
+				col = "standard_price";
+				break;
+			case CHILD:
+				col = "child_price";
+				break;
+			case SENIOR:
+				col = "senior_price";
+				break;
+			default:
+				return price;
+		} // switch
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery("SELECT * FROM prices")) {			
+			while (rs.next()) {
+				price = rs.getDouble(col);
+			} // while
+
+			rs.close();
+			return price;
+		} catch (SQLException sqle) {
+			System.err.println("getTicketPrice: " + sqle);
+			return price;
+		} // try-catch
 	} // getTicketType
 
+	/**
+	 * Adds a {@code Showtime} to the database.
+	 * @param showtime The showtime to add.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
     public boolean addShowtime(Showtime showtime) {
-        throw new UnsupportedOperationException("Unimplemented method 'addShowtime'");
+        String sql = Schema.ADD_SHOWTIME;
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, showtime.getMovieId());
+			stmt.setInt(2, showtime.getShowroomId());
+			stmt.setDate(3, showtime.getStartTime());
+			stmt.setDate(3, showtime.getEndTime());
+	    
+		    stmt.executeUpdate();
+
+			// get database ID
+			showtime.setId(getLatestDatabaseId());
+		    return true;
+		} catch (SQLException sqle) {
+	    	System.err.println("addShowtime: " + sqle);
+		    return false;
+		} // try-catch
     } // addShowtime
+
+	/**
+	 * Adds a {@code Ticket} to the database.
+	 * @param ticket The ticker to add.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+    public boolean addTicket(Ticket ticket) {
+        String sql = Schema.ADD_TICKET;
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, ticket.getUserId());
+			stmt.setInt(2, ticket.getShowtimeId());
+			stmt.setInt(3, ticket.getSeatId());
+			stmt.setDouble(4, ticket.getPrice());
+			stmt.setString(5, ticket.getTypeString());
+			stmt.setDate(6, ticket.getPurchaseDate());
+	    
+		    stmt.executeUpdate();
+
+			// get database ID
+			ticket.setId(getLatestDatabaseId());
+		    return true;
+		} catch (SQLException sqle) {
+	    	System.err.println("addTicket: " + sqle);
+		    return false;
+		} // try-catch
+    } // addTicket
 
     public List<Showtime> getShowtimes() {
         throw new UnsupportedOperationException("Unimplemented method 'getShowtimes'");

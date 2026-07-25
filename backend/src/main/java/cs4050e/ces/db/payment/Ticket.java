@@ -1,6 +1,6 @@
 package cs4050e.ces.db.payment;
 
-import java.time.LocalDateTime;
+import java.sql.Date;
 
 import cs4050e.ces.db.DataHandler;
 
@@ -40,7 +40,7 @@ public class Ticket {
     private double price;
 
     /** When the ticket was purchased. */
-    private LocalDateTime purchaseDate;
+    private Date purchaseDate;
 
     /**
      * Initializes a new {@code Ticket} object, looking up its price
@@ -49,8 +49,9 @@ public class Ticket {
      * @param showtimeId The ID of the showtime being booked.
      * @param seatId The ID of the seat being reserved.
      * @param ticketClass The ticket's class, defining its price.
+     * @param date The date of purchase.
      */
-    public Ticket(int userId, int showtimeId, int seatId, TicketType ticketClass) {
+    public Ticket(int userId, int showtimeId, int seatId, TicketType ticketClass, Date date) {
         if (ticketClass == null) {
             throw new IllegalArgumentException("ticketClass must be a TicketType enum");
         } // if
@@ -60,7 +61,7 @@ public class Ticket {
         this.seatId = seatId;
         this.ticketClass = ticketClass;
         this.price = db.getTicketPrice(this.ticketClass);
-        this.purchaseDate = LocalDateTime.now();
+        this.purchaseDate = date;
     } // Ticket
 
     public int getId() {
@@ -87,11 +88,24 @@ public class Ticket {
         return ticketClass;
     } // getTicketClass
 
+    public String getTypeString() {
+        switch (this.ticketClass) {
+            case STANDARD:
+                return "STANDARD";
+            case CHILD:
+                return "CHILD";
+            case SENIOR:
+                return "SENIOR";
+            default:
+                return "";
+        } // switch
+    } // getTypeString
+
     public double getPrice() {
         return price;
     } // getPrice
 
-    public LocalDateTime getPurchaseDate() {
+    public Date getPurchaseDate() {
         return purchaseDate;
     } // getPurchaseDate
 } // Ticket

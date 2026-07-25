@@ -3,7 +3,7 @@ package cs4050e.ces.api.requests;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.sql.Date;
 import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -62,7 +62,8 @@ public class ScheduleMovieRequest extends MovieRequest {
      * @throws ParseException if the string is invalid.
      */
     public Date getStartTime() throws ParseException {
-        return formatter.parse(startTime);
+        // convert java.util.Date to java.sql.Date
+        return new Date(formatter.parse(startTime).getTime());
     } // getStartTime
 
     /**
@@ -71,6 +72,7 @@ public class ScheduleMovieRequest extends MovieRequest {
      * @throws ParseException if the string is invalid.
      */
     public Date getEndTime() throws ParseException {
-        return formatter.parse(endTime);
+        // convert java.util.Date to java.sql.Date
+        return new Date(formatter.parse(endTime).getTime());
     } // getEndTime
 } // ScheduleMovieRequest
