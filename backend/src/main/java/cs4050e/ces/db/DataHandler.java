@@ -963,15 +963,25 @@ public class DataHandler {
 			System.err.println("seed(prices): " + sqle);
 		} // try-catch
 
-		// seed a default showroom and its seats
-		Showroom showroom = new Showroom("Theatre 1", 32);
-		addShowroom(showroom);
-
+		// seed default showrooms and their seats
+		String[] showroomNames = { "Theatre 1", "Theatre 2", "Theatre 3" };
 		String[] rows = { "A", "B", "C", "D" };
-		for (String row : rows) {
-			for (int seatNumber = 1; seatNumber <= 8; seatNumber++) {
-				addSeat(new Seat(showroom.getId(), row, seatNumber));
+		Showroom showroom = null;
+
+		for (String name : showroomNames) {
+			Showroom room = new Showroom(name, 32);
+			addShowroom(room);
+
+			for (String row : rows) {
+				for (int seatNumber = 1; seatNumber <= 8; seatNumber++) {
+					addSeat(new Seat(room.getId(), row, seatNumber));
+				} // for
 			} // for
+
+			// showtimes below are seeded in the first showroom
+			if (showroom == null) {
+				showroom = room;
+			} // if
 		} // for
 
 		// seed showtimes for the currently-running movies
@@ -1013,6 +1023,32 @@ public class DataHandler {
 			return false;
 		} // try-catch
 	} // showroomExists
+
+	/**
+	 * Returns every showroom stored in the database.
+	 * @return a {@code List} of {@code Showroom}s if successful, {@code null} otherwise.
+	 */
+	public List<Showroom> getShowrooms() {
+		String sql = "SELECT * FROM showrooms";
+		List<Showroom> showrooms = new ArrayList<Showroom>();
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+			while (rs.next()) {
+				Showroom showroom = new Showroom(
+					rs.getString("name"),
+					rs.getInt("capacity")
+				);
+				showroom.setId(rs.getInt("id"));
+				showrooms.add(showroom);
+			} // while
+
+			return showrooms;
+		} catch (SQLException sqle) {
+			System.err.println("getShowrooms: " + sqle);
+			return null;
+		} // try-catch
+	} // getShowrooms
 
 	/**
 	 * Adds a {@code Showroom} to the database.
@@ -1169,6 +1205,33 @@ public class DataHandler {
 		    return false;
 		} // try-catch
     } // addShowtime
+
+	/**
+	 * Checks if a proposed showtime overlaps an existing showtime
+	 * in the same showroom.
+	 * @param showroomId The database id of the showroom.
+	 * @param start The proposed start time.
+	 * @param end The proposed end time.
+	 * @return {@code true} if there is a conflict, {@code false} otherwise.
+	 */
+	public boolean hasShowtimeConflict(int showroomId, Timestamp start, Timestamp end) {
+		String sql = "SELECT COUNT(*) AS conflicts FROM showtimes " +
+					 "WHERE showroom_id = ? AND start_time < ? AND end_time > ?";
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, showroomId);
+			stmt.setTimestamp(2, end);
+			stmt.setTimestamp(3, start);
+
+			try (ResultSet rs = stmt.executeQuery()) {
+				return rs.next() && rs.getInt("conflicts") > 0;
+			} // try
+		} catch (SQLException sqle) {
+			System.err.println("hasShowtimeConflict: " + sqle);
+			// fail safe: report a conflict so we never double-book on error
+			return true;
+		} // try-catch
+	} // hasShowtimeConflict
 
 	/**
 	 * Adds a {@code Ticket} to the database.

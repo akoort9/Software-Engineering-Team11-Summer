@@ -12,8 +12,8 @@ import cs4050e.ces.api.responses.JsonResponse;
 
 /** Represents a request to add a showtime for a movie. */
 public class ScheduleMovieRequest extends MovieRequest {
-    /** Date formatter. */
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm");
+    /** Date formatter. Transient so Gson doesn't try to (de)serialize it. */
+    transient SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm");
 
     /** The database ID of this showtime's showroom. */
     public int showroomID;

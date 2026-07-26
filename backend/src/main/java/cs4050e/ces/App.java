@@ -21,6 +21,7 @@ import cs4050e.ces.api.responses.*;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
 import cs4050e.ces.db.theatre.Seat;
+import cs4050e.ces.db.theatre.Showroom;
 import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.payment.Card;
 import cs4050e.ces.db.payment.Ticket;
@@ -65,6 +66,7 @@ public class App {
 
 		server.createContext("/api/movies", App::handleMovies);
 		server.createContext("/api/showtimes", App::handleShowtimes);
+		server.createContext("/api/showrooms", App::handleShowrooms);
 		server.createContext("/api/seats", App::handleSeats);
 		server.createContext("/api/bookings", App::handleBookings);
 		server.createContext("/api/user", App::handleUsers);
@@ -222,6 +224,12 @@ public class App {
 		if (!checkRequest(exchange, request)) { return; } // if
 
 		try {
+			if (db.hasShowtimeConflict(request.showroomID, request.getStartTime(), request.getEndTime())) {
+				JsonResponse.send(exchange, 409, Map.of("error",
+					"that showroom already has a showtime scheduled during this time"));
+				return;
+			} // if
+
 			Showtime showtime = new Showtime(
 			db.resolveMovieId(request.movie),
 			request.showroomID,
@@ -239,6 +247,46 @@ public class App {
 			return;
 		} // try-catch
     } // handlePostShowtimes
+
+	/**
+     * Routes requests to {@code /api/showrooms} based on HTTP method.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleShowrooms(HttpExchange exchange) throws IOException {
+		// allow the React dev server (different origin) to call this API
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+		} // if
+		else if (method.equals("GET")) {
+			handleGetShowrooms(exchange);
+		} // elif
+		else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+		} // else
+    } // handleShowrooms
+
+	/**
+     * Returns showrooms.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleGetShowrooms(HttpExchange exchange) throws IOException {
+		List<Showroom> showrooms = db.getShowrooms();
+
+		if (showrooms == null) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
+			return;
+		} // if
+
+		JsonResponse.send(exchange, 200, showrooms);
+    } // handleGetShowrooms
 
 	/**
      * Routes requests to {@code /api/seats} based on HTTP method.
