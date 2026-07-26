@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
+import { fetchAllShowtimes } from '../api/booking.js'
 import { statusLabel } from '../utils/statusLabel.js'
-import { getShowtimes } from '../utils/showtimes.js'
+import { formatShowtimeLabel } from '../utils/showtimes.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { useFavorites } from '../hooks/useFavorites.js'
 import FavoriteStar from '../components/FavoriteStar.jsx'
@@ -12,6 +13,7 @@ export default function HomePage() {
   const { user, logout } = useAuth()
   const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
   const [movies, setMovies] = useState([])
+  const [showtimes, setShowtimes] = useState([])
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
@@ -21,6 +23,9 @@ export default function HomePage() {
     fetchMovies()
       .then(setMovies)
       .catch((err) => setError(err.message))
+    fetchAllShowtimes()
+      .then(setShowtimes)
+      .catch(() => {})
   }, [])
 
   const genres = [...new Set(movies.map((movie) => movie.genre).filter(Boolean))]
@@ -131,22 +136,25 @@ return (
     </div>
           <p className="movie-genre">{movie.genre}</p>
           <p className="movie-status">{statusLabel(movie.status)}</p>
-          {getShowtimes(movie).length > 0 && movie.status ? (
-            <ul className="showtimes">
-              {getShowtimes(movie).map((time) => (
-                <li key={time}>
-                  <Link
-                    to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
-                    className="showtime"
-                  >
-                    {time}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No showtimes listed.</p>
-          )}
+          {(() => {
+            const movieShowtimes = showtimes.filter((st) => st.movieId === movie.id)
+            return movieShowtimes.length > 0 && movie.status ? (
+              <ul className="showtimes">
+                {movieShowtimes.map((st) => (
+                  <li key={st.id}>
+                    <Link
+                      to={`/booking?movieId=${movie.id}&showtimeId=${st.id}`}
+                      className="showtime"
+                    >
+                      {formatShowtimeLabel(st)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No showtimes listed.</p>
+            )
+          })()}
         </article>
       </Fragment>
     )

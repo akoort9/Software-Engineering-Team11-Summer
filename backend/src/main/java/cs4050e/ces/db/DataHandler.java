@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.security.MessageDigest;
@@ -895,12 +896,26 @@ public class DataHandler {
 
 		// clear all records from database, don't drop tables
 		try (Statement stmt = conn.createStatement()) {
+			stmt.execute("DELETE FROM tickets");
+			stmt.execute("DELETE FROM showtimes");
+			stmt.execute("DELETE FROM seats");
+			stmt.execute("DELETE FROM showrooms");
+			stmt.execute("DELETE FROM prices");
 			stmt.execute("DELETE FROM movies");
 			stmt.execute("DELETE FROM users");
 			stmt.execute("DELETE FROM favorite_movies");
 			stmt.execute("DELETE FROM payment_methods");
 		} catch (SQLException sqle) {
 			return false;
+		} // try-catch
+
+		// reset autoincrement counters so ids restart cleanly; this table
+		// only exists once an AUTOINCREMENT table has ever been inserted
+		// into, so a fresh, never-used database file won't have it yet
+		try (Statement stmt = conn.createStatement()) {
+			stmt.execute("DELETE FROM sqlite_sequence");
+		} catch (SQLException sqle) {
+			// ignore; nothing to reset
 		} // try-catch
 
 		// reseed
@@ -936,6 +951,42 @@ public class DataHandler {
 		// seed cards
 		for (int i = 0; i < Seed.cards.length; i++) {
 			addCard(Seed.users[2], Seed.cards[i]);
+		} // for
+
+		// seed ticket prices
+		try (PreparedStatement stmt = conn.prepareStatement(Schema.ADD_PRICES)) {
+			stmt.setDouble(1, 12.0);	// standard
+			stmt.setDouble(2, 8.0);		// child
+			stmt.setDouble(3, 10.0);	// senior
+			stmt.executeUpdate();
+		} catch (SQLException sqle) {
+			System.err.println("seed(prices): " + sqle);
+		} // try-catch
+
+		// seed a default showroom and its seats
+		Showroom showroom = new Showroom("Theatre 1", 32);
+		addShowroom(showroom);
+
+		String[] rows = { "A", "B", "C", "D" };
+		for (String row : rows) {
+			for (int seatNumber = 1; seatNumber <= 8; seatNumber++) {
+				addSeat(new Seat(showroom.getId(), row, seatNumber));
+			} // for
+		} // for
+
+		// seed showtimes for the currently-running movies
+		String[] slots = { "14:00:00", "17:00:00", "20:00:00" };
+		java.time.LocalDate today = java.time.LocalDate.now();
+		for (Movie movie : Seed.movies) {
+			if (!movie.isStatus()) {
+				continue;
+			} // if
+
+			for (String slot : slots) {
+				Timestamp start = Timestamp.valueOf(today + " " + slot);
+				Timestamp end = new Timestamp(start.getTime() + (2 * 60 * 60 * 1000));
+				addShowtime(new Showtime(movie.getId(), showroom.getId(), start, end));
+			} // for
 		} // for
 
 		return true;
@@ -1105,9 +1156,9 @@ public class DataHandler {
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt(1, showtime.getMovieId());
 			stmt.setInt(2, showtime.getShowroomId());
-			stmt.setDate(3, showtime.getStartTime());
-			stmt.setDate(3, showtime.getEndTime());
-	    
+			stmt.setTimestamp(3, showtime.getStartTime());
+			stmt.setTimestamp(4, showtime.getEndTime());
+
 		    stmt.executeUpdate();
 
 			// get database ID
@@ -1146,7 +1197,190 @@ public class DataHandler {
 		} // try-catch
     } // addTicket
 
+    /**
+     * Returns every showtime stored in the database.
+     * @return a {@code List} of {@code Showtime}s if successful, {@code null} otherwise.
+     */
     public List<Showtime> getShowtimes() {
-        throw new UnsupportedOperationException("Unimplemented method 'getShowtimes'");
+        String sql = "SELECT * FROM showtimes";
+        List<Showtime> showtimes = new ArrayList<Showtime>();
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                Showtime showtime = new Showtime(
+                    rs.getInt("movie_id"),
+                    rs.getInt("showroom_id"),
+                    rs.getTimestamp("start_time"),
+                    rs.getTimestamp("end_time")
+                );
+                showtime.setId(rs.getInt("id"));
+                showtimes.add(showtime);
+            } // while
+
+            rs.close();
+            return showtimes;
+        } catch (SQLException sqle) {
+            System.err.println("getShowtimes: " + sqle);
+            return null;
+        } // try-catch
     } // getShowtimes
+
+    /**
+     * Returns every showtime stored in the database for a given movie.
+     * @param movieId The database id of the movie.
+     * @return a {@code List} of {@code Showtime}s if successful, {@code null} otherwise.
+     */
+    public List<Showtime> getShowtimesForMovie(int movieId) {
+        String sql = "SELECT * FROM showtimes WHERE movie_id = " + movieId;
+        List<Showtime> showtimes = new ArrayList<Showtime>();
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                Showtime showtime = new Showtime(
+                    rs.getInt("movie_id"),
+                    rs.getInt("showroom_id"),
+                    rs.getTimestamp("start_time"),
+                    rs.getTimestamp("end_time")
+                );
+                showtime.setId(rs.getInt("id"));
+                showtimes.add(showtime);
+            } // while
+
+            rs.close();
+            return showtimes;
+        } catch (SQLException sqle) {
+            System.err.println("getShowtimesForMovie: " + sqle);
+            return null;
+        } // try-catch
+    } // getShowtimesForMovie
+
+    /**
+     * Returns a single showtime from the database.
+     * @param id The database id of the showtime.
+     * @return A {@code Showtime} object, or {@code null} if it does not exist.
+     */
+    public Showtime getShowtime(int id) {
+        String sql = "SELECT * FROM showtimes WHERE id = " + id;
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            Showtime showtime = null;
+            while (rs.next()) {
+                showtime = new Showtime(
+                    rs.getInt("movie_id"),
+                    rs.getInt("showroom_id"),
+                    rs.getTimestamp("start_time"),
+                    rs.getTimestamp("end_time")
+                );
+                showtime.setId(rs.getInt("id"));
+            } // while
+
+            rs.close();
+            return showtime;
+        } catch (SQLException sqle) {
+            System.err.println("getShowtime: " + sqle);
+            return null;
+        } // try-catch
+    } // getShowtime
+
+    /**
+     * Returns every seat belonging to a given showroom.
+     * @param showroomId The database id of the showroom.
+     * @return a {@code List} of {@code Seat}s if successful, {@code null} otherwise.
+     */
+    public List<Seat> getSeats(int showroomId) {
+        String sql = "SELECT * FROM seats WHERE showroom_id = " + showroomId;
+        List<Seat> seats = new ArrayList<Seat>();
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                Seat seat = new Seat(
+                    rs.getInt("showroom_id"),
+                    rs.getString("row_label"),
+                    rs.getInt("seat_number")
+                );
+                seat.setId(rs.getInt("id"));
+                seats.add(seat);
+            } // while
+
+            rs.close();
+            return seats;
+        } catch (SQLException sqle) {
+            System.err.println("getSeats: " + sqle);
+            return null;
+        } // try-catch
+    } // getSeats
+
+    /**
+     * Returns the database ids of every seat already booked (ticketed)
+     * for a given showtime.
+     * @param showtimeId The database id of the showtime.
+     * @return a {@code List} of seat ids if successful, {@code null} otherwise.
+     */
+    public List<Integer> getBookedSeatIds(int showtimeId) {
+        String sql = "SELECT seat_id FROM tickets WHERE showtime_id = " + showtimeId;
+        List<Integer> seatIds = new ArrayList<Integer>();
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                seatIds.add(rs.getInt("seat_id"));
+            } // while
+
+            rs.close();
+            return seatIds;
+        } catch (SQLException sqle) {
+            System.err.println("getBookedSeatIds: " + sqle);
+            return null;
+        } // try-catch
+    } // getBookedSeatIds
+
+    /**
+     * Books a list of {@code Ticket}s as a single all-or-nothing operation:
+     * if any seat in the list is already booked for its showtime (or any
+     * other error occurs), none of the tickets are saved. Real-time seat
+     * locking is not implemented; this relies on the {@code tickets} table's
+     * unique (showtime_id, seat_id) constraint as the source of truth.
+     * @param tickets The tickets to book.
+     * @return the booked tickets (with database ids set), or {@code null}
+     * if the booking failed.
+     */
+    public List<Ticket> bookSeats(List<Ticket> tickets) {
+        try {
+            conn.setAutoCommit(false);
+
+            for (Ticket ticket : tickets) {
+                try (PreparedStatement stmt = conn.prepareStatement(Schema.ADD_TICKET)) {
+                    stmt.setInt(1, ticket.getUserId());
+                    stmt.setInt(2, ticket.getShowtimeId());
+                    stmt.setInt(3, ticket.getSeatId());
+                    stmt.setDouble(4, ticket.getPrice());
+                    stmt.setString(5, ticket.getTypeString());
+                    stmt.setDate(6, ticket.getPurchaseDate());
+                    stmt.executeUpdate();
+                    ticket.setId(getLatestDatabaseId());
+                } // try
+            } // for
+
+            conn.commit();
+            return tickets;
+        } catch (SQLException sqle) {
+            System.err.println("bookSeats: " + sqle);
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackException) {
+                System.err.println("bookSeats(rollback): " + rollbackException);
+            } // try-catch
+            return null;
+        } finally {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException autoCommitException) {
+                System.err.println("bookSeats(autoCommit): " + autoCommitException);
+            } // try-catch
+        } // try-catch-finally
+    } // bookSeats
 } // DataHandler

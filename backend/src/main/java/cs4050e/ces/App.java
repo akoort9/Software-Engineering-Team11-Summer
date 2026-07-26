@@ -20,8 +20,10 @@ import cs4050e.ces.api.requests.*;
 import cs4050e.ces.api.responses.*;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.theatre.Movie;
+import cs4050e.ces.db.theatre.Seat;
 import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.payment.Card;
+import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.users.*;
 
 /** Runs the HTTP API that the React frontend talks to. */
@@ -63,6 +65,8 @@ public class App {
 
 		server.createContext("/api/movies", App::handleMovies);
 		server.createContext("/api/showtimes", App::handleShowtimes);
+		server.createContext("/api/seats", App::handleSeats);
+		server.createContext("/api/bookings", App::handleBookings);
 		server.createContext("/api/user", App::handleUsers);
 		server.createContext("/api/favorites", App::handleFavorites);
 		server.createContext("/api/cards", App::handleCards);
@@ -173,14 +177,38 @@ public class App {
      * @throws IOException if writing the response fails.
      */
     private static void handleGetShowtimes(HttpExchange exchange) throws IOException {
-		List<Showtime> showtimes = db.getShowtimes();
+		Map<String, String> query = queryParams(exchange);
+		String movieIdParam = query.get("movieId");
+
+		List<Showtime> showtimes;
+		if (movieIdParam == null) {
+			showtimes = db.getShowtimes();
+		} else {
+			try {
+				showtimes = db.getShowtimesForMovie(Integer.parseInt(movieIdParam));
+			} catch (NumberFormatException nfe) {
+				JsonResponse.send(exchange, 400, Map.of("error", "invalid movieId"));
+				return;
+			} // try-catch
+		} // if-else
 
 		if (showtimes == null) {
 			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
 			return;
-		} else {
-			JsonResponse.send(exchange, 200, showtimes);
-		} // if-else
+		} // if
+
+		List<Map<String, Object>> out = new ArrayList<>();
+		for (Showtime showtime : showtimes) {
+			Map<String, Object> m = new HashMap<>();
+			m.put("id", showtime.getId());
+			m.put("movieId", showtime.getMovieId());
+			m.put("showroomId", showtime.getShowroomId());
+			m.put("startTime", showtime.getStartTime().toInstant().toString());
+			m.put("endTime", showtime.getEndTime().toInstant().toString());
+			out.add(m);
+		} // for
+
+		JsonResponse.send(exchange, 200, out);
     } // handleGetShowtimes
 
 	/**
@@ -211,6 +239,172 @@ public class App {
 			return;
 		} // try-catch
     } // handlePostShowtimes
+
+	/**
+     * Routes requests to {@code /api/seats} based on HTTP method.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleSeats(HttpExchange exchange) throws IOException {
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("GET")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if-elif
+
+		handleGetSeats(exchange);
+    } // handleSeats
+
+	/**
+     * Returns every seat for a showtime's showroom, each flagged with
+     * whether it's already booked for that showtime.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleGetSeats(HttpExchange exchange) throws IOException {
+		Map<String, String> query = queryParams(exchange);
+		String showtimeIdParam = query.get("showtimeId");
+
+		if (showtimeIdParam == null) {
+			JsonResponse.send(exchange, 400, Map.of("error", "showtimeId is required"));
+			return;
+		} // if
+
+		int showtimeId;
+		try {
+			showtimeId = Integer.parseInt(showtimeIdParam);
+		} catch (NumberFormatException nfe) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid showtimeId"));
+			return;
+		} // try-catch
+
+		Showtime showtime = db.getShowtime(showtimeId);
+		if (showtime == null) {
+			JsonResponse.send(exchange, 404, Map.of("error", "showtime not found"));
+			return;
+		} // if
+
+		List<Seat> seats = db.getSeats(showtime.getShowroomId());
+		List<Integer> booked = db.getBookedSeatIds(showtimeId);
+
+		if (seats == null || booked == null) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
+			return;
+		} // if
+
+		List<Map<String, Object>> out = new ArrayList<>();
+		for (Seat seat : seats) {
+			Map<String, Object> m = new HashMap<>();
+			m.put("id", seat.getId());
+			m.put("rowLabel", seat.getRowLabel());
+			m.put("seatNumber", seat.getSeatNumber());
+			m.put("label", seat.getLabel());
+			m.put("booked", booked.contains(seat.getId()));
+			out.add(m);
+		} // for
+
+		JsonResponse.send(exchange, 200, out);
+    } // handleGetSeats
+
+	/**
+     * Routes requests to {@code /api/bookings} based on HTTP method.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleBookings(HttpExchange exchange) throws IOException {
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if-elif
+
+		handlePostBooking(exchange);
+    } // handleBookings
+
+	/**
+     * Books seats for a showtime. This sprint doesn't implement real-time
+     * seat locking, so availability is checked right before booking and the
+     * {@code tickets} table's unique (showtime_id, seat_id) constraint is
+     * the final backstop against double-booking a seat.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handlePostBooking(HttpExchange exchange) throws IOException {
+		BookTicketsRequest request = GSON.fromJson(getBody(exchange), BookTicketsRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		User user = db.getUser(request.email);
+		Showtime showtime = db.getShowtime(request.showtimeId);
+
+		List<Integer> alreadyBooked = db.getBookedSeatIds(request.showtimeId);
+		List<Integer> conflicts = new ArrayList<>();
+		for (BookTicketsRequest.SeatSelection selection : request.seats) {
+			if (alreadyBooked.contains(selection.seatId)) {
+				conflicts.add(selection.seatId);
+			} // if
+		} // for
+
+		if (!conflicts.isEmpty()) {
+			JsonResponse.send(exchange, 409,
+				Map.of("error", "some seats are already booked", "seatIds", conflicts));
+			return;
+		} // if
+
+		java.sql.Date purchaseDate = new java.sql.Date(System.currentTimeMillis());
+		List<Ticket> tickets = new ArrayList<>();
+		for (BookTicketsRequest.SeatSelection selection : request.seats) {
+			Ticket.TicketType type = Ticket.TicketType.valueOf(selection.ticketType.toUpperCase());
+			tickets.add(new Ticket(user.getId(), request.showtimeId, selection.seatId, type, purchaseDate));
+		} // for
+
+		List<Ticket> booked = db.bookSeats(tickets);
+		if (booked == null) {
+			JsonResponse.send(exchange, 409,
+				Map.of("error", "one or more seats were just booked by someone else"));
+			return;
+		} // if
+
+		Map<Integer, String> seatLabels = new HashMap<>();
+		for (Seat seat : db.getSeats(showtime.getShowroomId())) {
+			seatLabels.put(seat.getId(), seat.getLabel());
+		} // for
+
+		double total = 0;
+		List<Map<String, Object>> ticketsOut = new ArrayList<>();
+		for (Ticket ticket : booked) {
+			Map<String, Object> t = new HashMap<>();
+			t.put("id", ticket.getId());
+			t.put("seatId", ticket.getSeatId());
+			t.put("seatLabel", seatLabels.get(ticket.getSeatId()));
+			t.put("ticketType", ticket.getTypeString());
+			t.put("price", ticket.getPrice());
+			ticketsOut.add(t);
+			total += ticket.getPrice();
+		} // for
+
+		JsonResponse.send(exchange, 201, Map.of(
+			"tickets", ticketsOut,
+			"totalPrice", total,
+			"showtimeId", request.showtimeId,
+			"purchaseDate", purchaseDate.toString()
+		));
+    } // handlePostBooking
 
 	/**
      * Routes requests to {@code /api/users} based on HTTP method.
@@ -580,7 +774,32 @@ public class App {
         } // if
         return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
     } // queryEmail
-	
+
+    /**
+     * Parses all query parameters off a request's URI.
+     * @param exchange The HTTP exchange.
+     * @return A {@code Map} of query parameter names to values.
+     */
+    private static Map<String, String> queryParams(HttpExchange exchange) {
+        Map<String, String> params = new HashMap<>();
+        String query = exchange.getRequestURI().getQuery();
+        if (query == null) {
+            return params;
+        } // if
+
+        for (String pair : query.split("&")) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2) {
+                params.put(
+                    URLDecoder.decode(parts[0], StandardCharsets.UTF_8),
+                    URLDecoder.decode(parts[1], StandardCharsets.UTF_8)
+                );
+            } // if
+        } // for
+
+        return params;
+    } // queryParams
+
 	/**
      * Verifies a customer account using an email/code pair from the request
      * body, flipping the account state to ACTIVE when the code matches.

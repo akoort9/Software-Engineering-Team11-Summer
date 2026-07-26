@@ -3,7 +3,7 @@ package cs4050e.ces.api.requests;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -61,9 +61,9 @@ public class ScheduleMovieRequest extends MovieRequest {
      * @return The start time.
      * @throws ParseException if the string is invalid.
      */
-    public Date getStartTime() throws ParseException {
-        // convert java.util.Date to java.sql.Date
-        return new Date(formatter.parse(startTime).getTime());
+    public Timestamp getStartTime() throws ParseException {
+        // convert java.util.Date to java.sql.Timestamp, preserving time-of-day
+        return new Timestamp(formatter.parse(startTime).getTime());
     } // getStartTime
 
     /**
@@ -71,8 +71,8 @@ public class ScheduleMovieRequest extends MovieRequest {
      * @return The end time.
      * @throws ParseException if the string is invalid.
      */
-    public Date getEndTime() throws ParseException {
-        // convert java.util.Date to java.sql.Date
-        return new Date(formatter.parse(endTime).getTime());
+    public Timestamp getEndTime() throws ParseException {
+        // convert java.util.Date to java.sql.Timestamp, preserving time-of-day
+        return new Timestamp(formatter.parse(endTime).getTime());
     } // getEndTime
 } // ScheduleMovieRequest
