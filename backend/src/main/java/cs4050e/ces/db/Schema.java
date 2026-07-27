@@ -91,6 +91,13 @@ class Schema {
                     "child_price INTEGER NOT NULL, " +
                     "senior_price INTEGER NOT NULL)";
 
+    /** SQL statement to create the 'promotions' table. */
+    public static final String PROMOTIONS_TABLE = "CREATE TABLE IF NOT EXISTS promotions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "promo_code TEXT NOT NULL, " +
+                    "discount_percent DECIMAL, " +
+                    "expiration_date DATE)";
+
     /** SQL statement to add a movie. */
     public static final String ADD_MOVIE = "INSERT INTO movies (" +
                     "title, genre, \"desc\", poster, trailer, status, rating) " +
@@ -122,6 +129,14 @@ class Schema {
     /** SQL statement to add a row of ticket prices. */
     public static final String ADD_PRICES = "INSERT INTO prices (" +
                     "standard_price, child_price, senior_price) VALUES (?, ?, ?)";
+
+    /** SQL statement to add a promotion. */
+    public static final String ADD_PROMOTION = "INSERT INTO promotions (" +
+                    "promo_code, discount_percent, expiration_date) VALUES (?, ?, ?)";
+
+    /** SQL statement to set a user's account state. */
+    public static final String SET_USER_STATE = "UPDATE users SET state = ? " +
+                    "WHERE email_address = ?";
 
     /** SQL statement to add a favorite movie. */
     public static final String ADD_FAVORITE_MOVIE = "INSERT INTO favorite_movies (" +

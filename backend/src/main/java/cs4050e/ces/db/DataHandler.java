@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.security.MessageDigest;
@@ -23,6 +24,7 @@ import cs4050e.ces.db.users.User;
 import cs4050e.ces.db.users.Administrator;
 import cs4050e.ces.db.users.Customer;
 import cs4050e.ces.db.payment.Card;
+import cs4050e.ces.db.payment.Promotion;
 
 /** Singleton class to provide access to the database. */
 public class DataHandler {
@@ -101,6 +103,7 @@ public class DataHandler {
 				stmt.execute(Schema.SHOWTIMES_TABLE);
 				stmt.execute(Schema.TICKETS_TABLE);
 				stmt.execute(Schema.PRICES_TABLE);
+				stmt.execute(Schema.PROMOTIONS_TABLE);
 			} // try
 
 			// keep older database files compatible with newer columns
@@ -406,6 +409,67 @@ public class DataHandler {
 			return false;
 		} // try-catch
 	} // updateUser
+
+	/**
+	 * Returns every user stored in the database.
+	 * @return a {@code List} of {@code User}s if successful, {@code null} otherwise.
+	 */
+	public List<User> getUsers() {
+		String sql = "SELECT * FROM users";
+		List<User> users = new ArrayList<User>();
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+			while (rs.next()) {
+				User user;
+				if (rs.getString("role").equals("admin")) {
+					user = new Administrator(
+						rs.getString("first_name"),
+						rs.getString("email_address"),
+						rs.getString("password_hash")
+					);
+				} else {
+					Customer customer = new Customer(
+						rs.getString("first_name"),
+						rs.getString("email_address"),
+						rs.getString("password_hash"),
+						rs.getString("last_name"),
+						rs.getString("mailing_address"),
+						rs.getString("state")
+					);
+					customer.setSubscribedToPromotions(rs.getInt("subscribed_to_promotions") == 1);
+					user = customer;
+				} // if-else
+				user.setId(rs.getInt("id"));
+				users.add(user);
+			} // while
+
+			rs.close();
+			return users;
+		} catch (SQLException sqle) {
+			System.err.println("getUsers: " + sqle);
+			return null;
+		} // try-catch
+	} // getUsers
+
+	/**
+	 * Sets the account state of the customer with the given email address.
+	 * @param email The user's email address.
+	 * @param state The new state (ACTIVE, INACTIVE or SUSPENDED).
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean setUserState(String email, String state) {
+		String sql = Schema.SET_USER_STATE;
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, state);
+			stmt.setString(2, email);
+			stmt.executeUpdate();
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("setUserState: " + sqle);
+			return false;
+		} // try-catch
+	} // setUserState
 
 	/**
 	 * Adds a given {@code Movie} to a given {@code User}'s
@@ -906,6 +970,7 @@ public class DataHandler {
 			stmt.execute("DELETE FROM users");
 			stmt.execute("DELETE FROM favorite_movies");
 			stmt.execute("DELETE FROM payment_methods");
+			stmt.execute("DELETE FROM promotions");
 		} catch (SQLException sqle) {
 			return false;
 		} // try-catch
@@ -941,7 +1006,8 @@ public class DataHandler {
 			this.addMovie(movie); 
 		} // for
 
-		// seeds users
+		// seeds users; subscribe a customer so promotions have a recipient
+		((Customer) Seed.users[1]).setSubscribedToPromotions(true);
 		for (User user : Seed.users) {
 			this.addUser(user);
 		} // for
@@ -1447,4 +1513,56 @@ public class DataHandler {
             } // try-catch
         } // try-catch-finally
     } // bookSeats
+
+	/**
+	 * Adds a {@code Promotion} to the database.
+	 * @param promotion The promotion to add.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean addPromotion(Promotion promotion) {
+		String sql = Schema.ADD_PROMOTION;
+
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, promotion.getPromoCode());
+			stmt.setDouble(2, promotion.getDiscountPercent());
+			stmt.setString(3, promotion.getExpirationDate().toString());
+
+			stmt.executeUpdate();
+
+			// get database ID
+			promotion.setId(getLatestDatabaseId());
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("addPromotion: " + sqle);
+			return false;
+		} // try-catch
+	} // addPromotion
+
+	/**
+	 * Returns every promotion stored in the database.
+	 * @return a {@code List} of {@code Promotion}s if successful, {@code null} otherwise.
+	 */
+	public List<Promotion> getPromotions() {
+		String sql = "SELECT * FROM promotions";
+		List<Promotion> promotions = new ArrayList<Promotion>();
+
+		try (Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(sql)) {
+			while (rs.next()) {
+				Promotion promotion = new Promotion(
+					rs.getString("promo_code"),
+					rs.getDouble("discount_percent"),
+					LocalDate.parse(rs.getString("expiration_date"))
+				);
+				promotion.setId(rs.getInt("id"));
+				promotions.add(promotion);
+			} // while
+
+			rs.close();
+			return promotions;
+		} catch (SQLException sqle) {
+			System.err.println("getPromotions: " + sqle);
+			return null;
+		} // try-catch
+	} // getPromotions
 } // DataHandler

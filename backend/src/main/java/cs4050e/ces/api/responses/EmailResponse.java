@@ -121,6 +121,25 @@ public class EmailResponse implements Response {
 		return true;
 	} // send
 
+	/**
+	 * Sends a promotional offer email to a {@code User}.
+	 * @param user The customer to send it to.
+	 * @param promoCode The code the customer enters to redeem the offer.
+	 * @param percentOff The percentage taken off the price.
+	 * @param expiration The date the promotion expires.
+	 * @return {@code true} if the email was sent, {@code false} otherwise.
+	 */
+	public static boolean sendPromotion(User user, String promoCode, double percentOff,
+			java.time.LocalDate expiration) {
+		if (user == null || !db.userExists(user.getEmail())) {
+			return false;
+		} // if
+
+		Email email = EmailTemplates.getPromotionEmail(user, promoCode, percentOff, expiration);
+		buildMailer().sendMail(email);
+		return true;
+	} // sendPromotion
+
     /**
 	 * Builds a {@code Mailer} configured to send through the project's
 	 * Gmail account.

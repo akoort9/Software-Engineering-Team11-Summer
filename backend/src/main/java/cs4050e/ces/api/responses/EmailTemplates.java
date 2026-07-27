@@ -3,6 +3,8 @@ package cs4050e.ces.api.responses;
 import org.simplejavamail.api.email.Email;
 import org.simplejavamail.email.EmailBuilder;
 
+import java.time.LocalDate;
+
 import cs4050e.ces.db.users.User;
 import cs4050e.ces.db.payment.Card;
 
@@ -22,6 +24,7 @@ public class EmailTemplates {
      * {@code CARD_UPDATED} - Card updated email.
      * {@code PASSWORD_RESET} - Password reset email.
      * {@code VERIFICATION} - Account verification email.
+     * {@code PROMOTION} - Promotional offer email.
      */
 	public enum Template {
         ACCOUNT_UPDATED,
@@ -30,6 +33,7 @@ public class EmailTemplates {
 		CARD_UPDATED,
         PASSWORD_RESET,
 		VERIFICATION,
+		PROMOTION,
 	};
 
     /**
@@ -136,6 +140,25 @@ public class EmailTemplates {
                 "contact support immediately.")
             .buildEmail();
     } // getCardRemovedEmail
+
+    /**
+     * Creates a promotional offer email.
+     * @param user The customer to send it to.
+     * @param promoCode The code the customer enters to redeem the offer.
+     * @param percentOff The percentage taken off the price.
+     * @param expiration The date the promotion expires.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getPromotionEmail(User user, String promoCode, double percentOff, LocalDate expiration) {
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: A special offer for you")
+            .withPlainText("Hello " + user.getName() + ", enjoy " + (int) percentOff +
+                "% off your next booking with code " + promoCode + ". This offer expires " +
+                expiration + ". You are receiving this because you subscribed to promotions.")
+            .buildEmail();
+    } // getPromotionEmail
 
     /** Masks a card number down to its last 4 digits. */
     private static String lastFourOf(String cardNumber) {
