@@ -66,7 +66,7 @@ public class Booking {
 
         // add discount
         if (promo != null) {
-            totalPrice *= promo.discountPercent;
+            totalPrice *= promo.getDiscountPercent();
         } // if
        
         return totalPrice;

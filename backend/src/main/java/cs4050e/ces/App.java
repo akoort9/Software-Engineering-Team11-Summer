@@ -24,6 +24,7 @@ import cs4050e.ces.db.theatre.Seat;
 import cs4050e.ces.db.theatre.Showroom;
 import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.payment.Card;
+import cs4050e.ces.db.payment.Promotion;
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.users.*;
 
@@ -70,6 +71,8 @@ public class App {
 		server.createContext("/api/seats", App::handleSeats);
 		server.createContext("/api/bookings", App::handleBookings);
 		server.createContext("/api/user", App::handleUsers);
+		server.createContext("/api/users", App::handleAdminUsers);
+		server.createContext("/api/promotions", App::handlePromotions);
 		server.createContext("/api/favorites", App::handleFavorites);
 		server.createContext("/api/cards", App::handleCards);
 		server.createContext("/api/login", App::handleLogin);
@@ -588,6 +591,193 @@ public class App {
 			return;
 		} // if
 	} // handleUpdateUser
+
+	/**
+	 * Routes admin requests to {@code /api/users} based on HTTP method.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static void handleAdminUsers(HttpExchange exchange) throws IOException {
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, PUT, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+		} // if
+		else if (method.equals("GET")) {
+			handleGetUsers(exchange);
+		} // elif
+		else if (method.equals("PUT")) {
+			handleSetUserState(exchange);
+		} // elif
+		else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+		} // else
+	} // handleAdminUsers
+
+	/**
+	 * Returns every user as JSON, for the admin user-management view.
+	 * Requires an admin's email as the {@code email} query parameter.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static void handleGetUsers(HttpExchange exchange) throws IOException {
+		String adminEmail = queryEmail(exchange);
+		if (adminEmail == null || !db.userExists(adminEmail) || !db.getUser(adminEmail).isAdmin()) {
+			JsonResponse.send(exchange, 403, Map.of("error", "requires administrator access"));
+			return;
+		} // if
+
+		List<User> users = db.getUsers();
+		if (users == null) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
+			return;
+		} // if
+
+		List<Map<String, Object>> out = new ArrayList<>();
+		for (User user : users) {
+			Map<String, Object> m = new HashMap<>();
+			m.put("id", user.getId());
+			m.put("name", user.getName());
+			m.put("email", user.getEmail());
+			if (user.isAdmin()) {
+				m.put("role", "admin");
+				m.put("lastName", "");
+				m.put("state", "ACTIVE");
+				m.put("subscribedToPromotions", false);
+			} else {
+				Customer customer = (Customer) user;
+				m.put("role", "customer");
+				m.put("lastName", customer.getLastName());
+				m.put("state", customer.getState().toString());
+				m.put("subscribedToPromotions", customer.isSubscribedToPromotions());
+			} // if-else
+			out.add(m);
+		} // for
+
+		JsonResponse.send(exchange, 200, out);
+	} // handleGetUsers
+
+	/**
+	 * Changes a customer's account state (activate/suspend) on an admin's request.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static void handleSetUserState(HttpExchange exchange) throws IOException {
+		UserStateRequest request = GSON.fromJson(getBody(exchange), UserStateRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		if (!db.setUserState(request.email, request.state)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not update user state"));
+			return;
+		} // if
+
+		JsonResponse.send(exchange, 200, Map.of("ok", true));
+	} // handleSetUserState
+
+	/**
+	 * Routes admin requests to {@code /api/promotions} based on HTTP method.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static void handlePromotions(HttpExchange exchange) throws IOException {
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+		} // if
+		else if (method.equals("GET")) {
+			handleGetPromotions(exchange);
+		} // elif
+		else if (method.equals("POST")) {
+			handlePostPromotion(exchange);
+		} // elif
+		else {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+		} // else
+	} // handlePromotions
+
+	/**
+	 * Returns every promotion as JSON, for the admin promotions view.
+	 * Requires an admin's email as the {@code email} query parameter.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static void handleGetPromotions(HttpExchange exchange) throws IOException {
+		String adminEmail = queryEmail(exchange);
+		if (adminEmail == null || !db.userExists(adminEmail) || !db.getUser(adminEmail).isAdmin()) {
+			JsonResponse.send(exchange, 403, Map.of("error", "requires administrator access"));
+			return;
+		} // if
+
+		List<Promotion> promotions = db.getPromotions();
+		if (promotions == null) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not read database"));
+			return;
+		} // if
+
+		List<Map<String, Object>> out = new ArrayList<>();
+		for (Promotion promo : promotions) {
+			Map<String, Object> m = new HashMap<>();
+			m.put("id", promo.getId());
+			m.put("promoCode", promo.getPromoCode());
+			m.put("percentOff", (int) Math.round((1.0 - promo.getDiscountPercent()) * 100));
+			m.put("expirationDate", promo.getExpirationDate().toString());
+			out.add(m);
+		} // for
+
+		JsonResponse.send(exchange, 200, out);
+	} // handleGetPromotions
+
+	/**
+	 * Creates a promotion and emails it to every customer subscribed to
+	 * promotional offers.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static void handlePostPromotion(HttpExchange exchange) throws IOException {
+		PromotionRequest request = GSON.fromJson(getBody(exchange), PromotionRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		Promotion promotion = new Promotion(
+			request.promoCode.trim(),
+			request.getDiscountMultiplier(),
+			request.getExpirationDate());
+
+		if (!db.addPromotion(promotion)) {
+			JsonResponse.send(exchange, 500, Map.of("error", "could not save promotion"));
+			return;
+		} // if
+
+		// email every subscribed customer
+		int sent = 0;
+		List<User> users = db.getUsers();
+		if (users != null) {
+			for (User user : users) {
+				if (user.isAdmin() || !((Customer) user).isSubscribedToPromotions()) {
+					continue;
+				} // if
+				try {
+					if (EmailResponse.sendPromotion(user, promotion.getPromoCode(),
+							request.percentOff, promotion.getExpirationDate())) {
+						sent++;
+					} // if
+				} catch (Exception e) {
+					System.err.println("handlePostPromotion (email): " + e);
+				} // try-catch
+			} // for
+		} // if
+
+		JsonResponse.send(exchange, 201,
+			Map.of("promoCode", promotion.getPromoCode(), "emailsSent", sent));
+	} // handlePostPromotion
 
     /**
      * Handles a user's favorite movies: 

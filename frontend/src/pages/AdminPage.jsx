@@ -6,9 +6,14 @@ import {
   fetchShowrooms,
   scheduleShowtime,
 } from '../api/movies.js'
+import {
+  fetchUsers,
+  setUserState,
+  fetchPromotions,
+  createPromotion,
+} from '../api/admin.js'
 import { useAuth } from '../auth/AuthContext.jsx'
-import '../App.css'
-import '../styles/AuthPage.css'
+import '../styles/Admin.css'
 
 const MENU = [
   { id: 'movies', label: 'Manage Movies' },
@@ -34,29 +39,47 @@ const EMPTY_SHOWTIME = {
   endTime: '',
 }
 
+const EMPTY_PROMOTION = {
+  promoCode: '',
+  percentOff: '',
+  expirationDate: '',
+}
+
 export default function AdminPage() {
   const { user } = useAuth()
   const [section, setSection] = useState('movies')
 
   const [movies, setMovies] = useState([])
   const [showrooms, setShowrooms] = useState([])
+  const [users, setUsers] = useState([])
+  const [promotions, setPromotions] = useState([])
 
   const [movieForm, setMovieForm] = useState(EMPTY_MOVIE)
   const [showtimeForm, setShowtimeForm] = useState(EMPTY_SHOWTIME)
+  const [promotionForm, setPromotionForm] = useState(EMPTY_PROMOTION)
 
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    Promise.all([fetchMovies().then(setMovies), fetchShowrooms().then(setShowrooms)])
-      .catch((err) => setError(err.message))
-  }, [])
+    if (!user || !user.isAdmin) {
+      return
+    }
+    Promise.all([
+      fetchMovies().then(setMovies),
+      fetchShowrooms().then(setShowrooms),
+      fetchUsers(user.email).then(setUsers),
+      fetchPromotions(user.email).then(setPromotions),
+    ]).catch((err) => setError(err.message))
+  }, [user])
 
   const updateMovieField = (e) =>
     setMovieForm({ ...movieForm, [e.target.name]: e.target.value })
   const updateShowtimeField = (e) =>
     setShowtimeForm({ ...showtimeForm, [e.target.name]: e.target.value })
+  const updatePromotionField = (e) =>
+    setPromotionForm({ ...promotionForm, [e.target.name]: e.target.value })
 
   const switchSection = (id) => {
     setSection(id)
@@ -146,158 +169,315 @@ export default function AdminPage() {
     }
   }
 
+  const handleCreatePromotion = async (e) => {
+    e.preventDefault()
+    setError('')
+    setStatus('')
+
+    const percentOff = Number(promotionForm.percentOff)
+    if (!promotionForm.promoCode.trim()) {
+      setError('A promo code is required.')
+      return
+    }
+    if (promotionForm.percentOff === '' || percentOff <= 0 || percentOff >= 100) {
+      setError('Discount must be a number between 0 and 100.')
+      return
+    }
+    if (!promotionForm.expirationDate) {
+      setError('An expiration date is required.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const result = await createPromotion(user.email, {
+        promoCode: promotionForm.promoCode.trim(),
+        percentOff,
+        expirationDate: promotionForm.expirationDate,
+      })
+      setPromotionForm(EMPTY_PROMOTION)
+      setPromotions(await fetchPromotions(user.email))
+      setStatus(`Promotion created. Emailed ${result.emailsSent} subscriber(s).`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleSetState = async (email, state) => {
+    setError('')
+    setStatus('')
+    setSubmitting(true)
+    try {
+      await setUserState(user.email, email, state)
+      setUsers(await fetchUsers(user.email))
+      setStatus('User updated.')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   if (!user || !user.isAdmin) {
     return (
-      <main className="auth-page">
-        <div className="auth-card">
-          <h1>Admin</h1>
-          <p className="auth-message">
-            This page requires an administrator account.
-          </p>
-          <Link to="/login" className="auth-button">Go to Login</Link>
+      <main className="admin-page">
+        <div className="admin-shell">
+          <div className="admin-panel">
+            <h2>Admin</h2>
+            <p className="panel-hint">This page requires an administrator account.</p>
+            <Link to="/login" className="admin-submit">Go to Login</Link>
+          </div>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="auth-page">
-      <div className="auth-card profile-card">
-        <h1>Admin</h1>
-        <p className="profile-signed-in">
-          Signed in as <strong>{user.email}</strong>
-        </p>
-
-        <div className="admin-menu">
-          {MENU.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`filter-toggle ${section === item.id ? 'active' : ''}`}
-              onClick={() => switchSection(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+    <main className="admin-page">
+      <div className="admin-shell">
+        <div className="admin-header">
+          <h1>Admin Console</h1>
+          <p className="admin-signed-in">
+            Signed in as <strong>{user.email}</strong>
+          </p>
         </div>
 
-        {status && <div className="profile-alert success">{status}</div>}
-        {error && <div className="profile-alert error">{error}</div>}
-
-        {section === 'movies' && (
-          <section className="profile-section">
-            <h2>Add Movie</h2>
-            <p className="field-hint">All fields are required.</p>
-
-            <form className="auth-form" onSubmit={handleAddMovie}>
-              <div className="form-group">
-                <label htmlFor="title">Title *</label>
-                <input id="title" name="title" value={movieForm.title} onChange={updateMovieField} />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="genre">Genre *</label>
-                <input id="genre" name="genre" value={movieForm.genre} onChange={updateMovieField} />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="desc">Description *</label>
-                <textarea id="desc" name="desc" rows="3" value={movieForm.desc} onChange={updateMovieField} />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="poster">Poster URL *</label>
-                <input id="poster" name="poster" value={movieForm.poster} onChange={updateMovieField} placeholder="https://..." />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="trailer">Trailer URL *</label>
-                <input id="trailer" name="trailer" value={movieForm.trailer} onChange={updateMovieField} placeholder="https://youtube.com/watch?v=..." />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="rating">Rating (0-10) *</label>
-                <input id="rating" name="rating" type="number" min="0" max="10" value={movieForm.rating} onChange={updateMovieField} />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="movie-status">Status *</label>
-                <select id="movie-status" name="status" value={movieForm.status} onChange={updateMovieField}>
-                  <option value="true">Currently Running</option>
-                  <option value="false">Coming Soon</option>
-                </select>
-              </div>
-
-              <button type="submit" className="auth-button" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Add Movie'}
+        <div className="admin-layout">
+          <nav className="admin-nav">
+            {MENU.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={section === item.id ? 'active' : ''}
+                onClick={() => switchSection(item.id)}
+              >
+                {item.label}
               </button>
-            </form>
+            ))}
+          </nav>
+
+          <section className="admin-panel">
+            {status && <div className="admin-alert success">{status}</div>}
+            {error && <div className="admin-alert error">{error}</div>}
+
+            {section === 'movies' && (
+              <>
+                <h2>Add Movie</h2>
+                <p className="panel-hint">All fields are required.</p>
+
+                <form className="admin-form" onSubmit={handleAddMovie}>
+                  <div className="field">
+                    <label htmlFor="title">Title</label>
+                    <input id="title" name="title" value={movieForm.title} onChange={updateMovieField} />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="genre">Genre</label>
+                    <input id="genre" name="genre" value={movieForm.genre} onChange={updateMovieField} />
+                  </div>
+
+                  <div className="field full">
+                    <label htmlFor="desc">Description</label>
+                    <textarea id="desc" name="desc" rows="3" value={movieForm.desc} onChange={updateMovieField} />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="poster">Poster URL</label>
+                    <input id="poster" name="poster" value={movieForm.poster} onChange={updateMovieField} placeholder="https://..." />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="trailer">Trailer URL</label>
+                    <input id="trailer" name="trailer" value={movieForm.trailer} onChange={updateMovieField} placeholder="https://youtube.com/watch?v=..." />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="rating">Rating (0-10)</label>
+                    <input id="rating" name="rating" type="number" min="0" max="10" value={movieForm.rating} onChange={updateMovieField} />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="movie-status">Status</label>
+                    <select id="movie-status" name="status" value={movieForm.status} onChange={updateMovieField}>
+                      <option value="true">Currently Running</option>
+                      <option value="false">Coming Soon</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" className="admin-submit" disabled={submitting}>
+                    {submitting ? 'Saving...' : 'Add Movie'}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {section === 'showtimes' && (
+              <>
+                <h2>Schedule Showtime</h2>
+                <p className="panel-hint">
+                  Times that overlap an existing showtime in the same showroom will be rejected.
+                </p>
+
+                <form className="admin-form" onSubmit={handleScheduleShowtime}>
+                  <div className="field">
+                    <label htmlFor="movieId">Movie</label>
+                    <select id="movieId" name="movieId" value={showtimeForm.movieId} onChange={updateShowtimeField}>
+                      <option value="">Select a movie...</option>
+                      {movies.map((movie) => (
+                        <option key={movie.id} value={movie.id}>{movie.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="showroomId">Showroom</label>
+                    <select id="showroomId" name="showroomId" value={showtimeForm.showroomId} onChange={updateShowtimeField}>
+                      <option value="">Select a showroom...</option>
+                      {showrooms.map((room) => (
+                        <option key={room.id} value={room.id}>
+                          {room.name} ({room.capacity} seats)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="startTime">Start Time</label>
+                    <input id="startTime" name="startTime" type="datetime-local" value={showtimeForm.startTime} onChange={updateShowtimeField} />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="endTime">End Time</label>
+                    <input id="endTime" name="endTime" type="datetime-local" value={showtimeForm.endTime} onChange={updateShowtimeField} />
+                  </div>
+
+                  <button type="submit" className="admin-submit" disabled={submitting}>
+                    {submitting ? 'Scheduling...' : 'Schedule Showtime'}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {section === 'promotions' && (
+              <>
+                <h2>Manage Promotions</h2>
+                <p className="panel-hint">
+                  Creating a promotion emails it to every customer subscribed to offers.
+                </p>
+
+                <form className="admin-form" onSubmit={handleCreatePromotion}>
+                  <div className="field">
+                    <label htmlFor="promoCode">Promo Code</label>
+                    <input id="promoCode" name="promoCode" value={promotionForm.promoCode} onChange={updatePromotionField} placeholder="SUMMER25" />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="percentOff">Discount (% off)</label>
+                    <input id="percentOff" name="percentOff" type="number" min="1" max="99" value={promotionForm.percentOff} onChange={updatePromotionField} />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="expirationDate">Expiration Date</label>
+                    <input id="expirationDate" name="expirationDate" type="date" value={promotionForm.expirationDate} onChange={updatePromotionField} />
+                  </div>
+
+                  <button type="submit" className="admin-submit" disabled={submitting}>
+                    {submitting ? 'Sending...' : 'Create & Send'}
+                  </button>
+                </form>
+
+                <hr className="admin-divider" />
+                <h2>Existing Promotions</h2>
+                {promotions.length === 0 ? (
+                  <p className="panel-hint">No promotions yet.</p>
+                ) : (
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Discount</th>
+                        <th>Expires</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {promotions.map((promo) => (
+                        <tr key={promo.id}>
+                          <td>{promo.promoCode}</td>
+                          <td>{promo.percentOff}% off</td>
+                          <td>{promo.expirationDate}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
+
+            {section === 'users' && (
+              <>
+                <h2>Manage Users</h2>
+                <p className="panel-hint">Suspend or reactivate customer accounts.</p>
+
+                {users.length === 0 ? (
+                  <p className="panel-hint">No users found.</p>
+                ) : (
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((u) => (
+                        <tr key={u.id}>
+                          <td>{[u.name, u.lastName].filter(Boolean).join(' ') || '-'}</td>
+                          <td>{u.email}</td>
+                          <td>{u.role}</td>
+                          <td>
+                            <span className={`state-badge ${u.state.toLowerCase()}`}>{u.state}</span>
+                          </td>
+                          <td>
+                            {u.role === 'customer' && (
+                              <div className="row-actions">
+                                {u.state === 'SUSPENDED' ? (
+                                  <button
+                                    type="button"
+                                    className="admin-btn"
+                                    disabled={submitting}
+                                    onClick={() => handleSetState(u.email, 'ACTIVE')}
+                                  >
+                                    Reactivate
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="admin-btn danger"
+                                    disabled={submitting}
+                                    onClick={() => handleSetState(u.email, 'SUSPENDED')}
+                                  >
+                                    Suspend
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
           </section>
-        )}
+        </div>
 
-        {section === 'showtimes' && (
-          <section className="profile-section">
-            <h2>Schedule Showtime</h2>
-            <p className="field-hint">
-              All fields are required. Times that overlap an existing showtime
-              in the same showroom will be rejected.
-            </p>
-
-            <form className="auth-form" onSubmit={handleScheduleShowtime}>
-              <div className="form-group">
-                <label htmlFor="movieId">Movie *</label>
-                <select id="movieId" name="movieId" value={showtimeForm.movieId} onChange={updateShowtimeField}>
-                  <option value="">Select a movie...</option>
-                  {movies.map((movie) => (
-                    <option key={movie.id} value={movie.id}>{movie.title}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="showroomId">Showroom *</label>
-                <select id="showroomId" name="showroomId" value={showtimeForm.showroomId} onChange={updateShowtimeField}>
-                  <option value="">Select a showroom...</option>
-                  {showrooms.map((room) => (
-                    <option key={room.id} value={room.id}>
-                      {room.name} ({room.capacity} seats)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="startTime">Start Time *</label>
-                <input id="startTime" name="startTime" type="datetime-local" value={showtimeForm.startTime} onChange={updateShowtimeField} />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="endTime">End Time *</label>
-                <input id="endTime" name="endTime" type="datetime-local" value={showtimeForm.endTime} onChange={updateShowtimeField} />
-              </div>
-
-              <button type="submit" className="auth-button" disabled={submitting}>
-                {submitting ? 'Scheduling...' : 'Schedule Showtime'}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {section === 'promotions' && (
-          <section className="profile-section">
-            <h2>Manage Promotions</h2>
-            <p className="field-hint">Coming in a future sprint.</p>
-          </section>
-        )}
-
-        {section === 'users' && (
-          <section className="profile-section">
-            <h2>Manage Users</h2>
-            <p className="field-hint">Coming in a future sprint.</p>
-          </section>
-        )}
-
-        <p className="profile-back">
+        <p className="admin-back">
           <Link to="/">Back to home</Link>
         </p>
       </div>
