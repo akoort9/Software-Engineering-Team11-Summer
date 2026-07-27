@@ -64,16 +64,25 @@ class Schema {
                     "start_time DATETIME, " +
                     "end_time DATETIME)";
 
-    /** SQL statement to create the 'tickets' table. */
-    public static final String TICKETS_TABLE = "CREATE TABLE IF NOT EXISTS tickets (" +
+    /** SQL statement to create the 'bookings' table. */
+    public static final String BOOKINGS_TABLE = "CREATE TABLE IF NOT EXISTS bookings (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "user_id INTEGER NOT NULL REFERENCES users(id), " +
-                    "showtime_id INTEGER NOT NULL REFERENCES showtimes(id), " +
-                    "seat_id INTEGER NOT NULL REFERENCES seats(id), " +
-                    "price DECIMAL, " +
-                    "ticket_class TEXT, " +
-                    "purchase_date DATETIME, " +
-                    "UNIQUE (showtime_id, seat_id))";
+                    "booking_date DATETIME, " +
+                    "total_price DECIMAL, " +
+                    "state TEXT)";                
+
+    /** SQL statement to create the 'tickets' table. */
+    public static final String TICKETS_TABLE = "CREATE TABLE IF NOT EXISTS tickets (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "user_id INTEGER NOT NULL REFERENCES users(id), " +
+                "booking_id INTEGER NOT NULL REFERENCES bookings(id), " +
+                "showtime_id INTEGER NOT NULL REFERENCES showtimes(id), " +
+                "seat_id INTEGER NOT NULL REFERENCES seats(id), " +
+                "price DECIMAL, " +
+                "ticket_class TEXT, " +
+                "purchase_date DATETIME, " +
+                "UNIQUE (showtime_id, seat_id))";
     
     /** SQL statement to create the 'ticket price' table. */
     public static final String PRICES_TABLE = "CREATE TABLE IF NOT EXISTS prices (" +
