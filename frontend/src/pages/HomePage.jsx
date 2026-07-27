@@ -75,33 +75,40 @@ return (
       </nav>
     </header>
 
-      <input
-        type="text"
-        placeholder="Search by title"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="filter-bar">
+        <input
+          type="text"
+          className="filter-search"
+          placeholder="Search by title"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-      <select value={genre} onChange={(e) => setGenre(e.target.value)}>
-        <option value="">All genres</option>
-        {genres.map((g) => (
-          <option key={g} value={g}>
-            {g}
-          </option>
-        ))}
-      </select>
+        <select
+          className="filter-select"
+          value={genre}
+          onChange={(e) => setGenre(e.target.value)}
+        >
+          <option value="">All genres</option>
+          {genres.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
 
-      <select disabled>
-        <option>Filter by date (coming soon)</option>
-      </select>
+        <select className="filter-select" disabled>
+          <option>Filter by date (coming soon)</option>
+        </select>
 
-      <button
-        type="button"
-        className={`filter-toggle${showSuggested ? ' active' : ''}`}
-        onClick={() => setShowSuggested((prev) => !prev)}
-      >
-        Suggested
-      </button>
+        <button
+          type="button"
+          className={`filter-toggle${showSuggested ? ' active' : ''}`}
+          onClick={() => setShowSuggested((prev) => !prev)}
+        >
+          Suggested
+        </button>
+      </div>
 
       {error && <p>{error}</p>}
 
@@ -161,28 +168,6 @@ return (
   })}
 </div>
 
-      {user ? (
-        <p>
-          Welcome, {user.name || user.email}
-          {user.isAdmin && ' (admin)'} |{' '}
-          <Link to="/booking">Book Seats</Link> |{' '}
-          {user.isAdmin && (
-            <>
-              <Link to="/admin">Admin</Link> |{' '}
-            </>
-          )}
-          <Link to="/edit-profile">Edit Profile</Link> |{' '}
-          <button type="button" onClick={logout}>
-            Log Out
-          </button>
-        </p>
-      ) : (
-        <div className="book-seats-cta">
-          <Link to="/booking" className="book-seats-btn">
-            Book Seats
-          </Link>
-    </div>
-      )}
     </main>
   )
 }
