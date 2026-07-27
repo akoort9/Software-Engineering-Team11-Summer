@@ -6,6 +6,7 @@ import org.simplejavamail.api.mailer.config.TransportStrategy;
 import org.simplejavamail.mailer.MailerBuilder;
 
 import cs4050e.ces.db.payment.Card;
+import cs4050e.ces.api.responses.EmailTemplates.Template;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.users.User;
 
@@ -14,36 +15,53 @@ public class EmailResponse implements Response {
 	/** Access to the database. */
 	private static final DataHandler db = DataHandler.getInstance();
 
-	public enum Template {
-		VERIFICATION,
-		PASSWORD_RESET,
-		ACCOUNT_UPDATED,
-		CARD_ADDED,
-		CARD_UPDATED,
-		CARD_REMOVED
-	};
 	/**
 	 * Sends an email to a {@code User} with a given code.
 	 * @param template The email template to use.
 	 * @param user The user to send the email to.
-	 * @param code The user's verification code.
+	 * @param code The user's verification code. This can be null unless needed.
+	 * @param code The card being modified. This can be null unless needed.
 	 */
-	public static boolean send(Template template, User user, String code) {
-		if (!db.userExists(user.getEmail()) || code.isEmpty()) {
+	public static boolean send(EmailTemplates.Template template, User user, String code, Card card) {
+		// error handling
+		if (template == null ||
+			user == null ||
+			!db.userExists(user.getEmail())) {
 			return false;
 		} // if
 
 		Email email = null;
 		switch(template) {
 			case VERIFICATION:
+				if (code.isEmpty()) { return false; }
 				email = EmailTemplates.getVerificationEmail(user, code);
 				break;
 			case PASSWORD_RESET:
+				if (code.isEmpty()) { return false; }
 				email = EmailTemplates.getPasswordResetEmail(user, code);
+				break;
+			case ACCOUNT_UPDATED:
+				email = EmailTemplates.getAccountUpdatedEmail(user);
+				break;
+			case CARD_ADDED:
+				if (card == null) { return false; }
+				email = EmailTemplates.getCardAddedEmail(user, null);
+				break;
+			case CARD_REMOVED:
+				if (card == null) { return false; }
+				email = EmailTemplates.getCardRemovedEmail(user, null);
+				break;
+			case CARD_UPDATED:
+				if (card == null) { return false; }
+				email = EmailTemplates.getCardUpdatedEmail(user, null);
 				break;
 			default:
 				return false;
 		} // switch
+
+		if (email == null) {
+			return false;
+		} // if
 
 		buildMailer().sendMail(email);
 		return true;

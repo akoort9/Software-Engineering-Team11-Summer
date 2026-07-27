@@ -83,6 +83,13 @@ class Schema {
                 "ticket_class TEXT, " +
                 "purchase_date DATETIME, " +
                 "UNIQUE (showtime_id, seat_id))";
+    
+    /** SQL statement to create the 'ticket price' table. */
+    public static final String PRICES_TABLE = "CREATE TABLE IF NOT EXISTS prices (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "standard_price INTEGER NOT NULL, " +
+                    "child_price INTEGER NOT NULL, " +
+                    "senior_price INTEGER NOT NULL)";
 
     /** SQL statement to add a movie. */
     public static final String ADD_MOVIE = "INSERT INTO movies (" +

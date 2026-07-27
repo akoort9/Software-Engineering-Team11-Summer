@@ -1,6 +1,6 @@
 package cs4050e.ces.db.theatre;
 
-import java.time.LocalDateTime;
+import java.sql.Date;
 
 /**
  * Represents a showtime in a given {@code Showroom}
@@ -18,12 +18,12 @@ public class Showtime {
     private int showroomId;
 
     /** When the showing starts. */
-    private LocalDateTime startTime;
+    private Date startTime;
 
     /** When the showing ends. */
-    private LocalDateTime endTime;
+    private Date endTime;
 
-    public Showtime(int movieId, int showroomId, LocalDateTime startTime, LocalDateTime endTime) {
+    public Showtime(int movieId, int showroomId, Date startTime, Date endTime) {
         this.movieId = movieId;
         this.showroomId = showroomId;
         this.startTime = startTime;
@@ -46,11 +46,11 @@ public class Showtime {
         return showroomId;
     } // getShowroomId
 
-    public LocalDateTime getStartTime() {
+    public Date getStartTime() {
         return startTime;
     } // getStartTime
 
-    public LocalDateTime getEndTime() {
+    public Date getEndTime() {
         return endTime;
     } // getEndTime
 } // Showtime

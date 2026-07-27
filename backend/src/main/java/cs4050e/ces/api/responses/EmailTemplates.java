@@ -14,6 +14,24 @@ public class EmailTemplates {
     /** The name of the sender for all these emails. */
     static final String CES_NAME = "Cinema E-booking System";
 
+    /** 
+     * The template you wish to use for sending an email.
+     * {@code ACCOUNT_UPDATED} - Account update email.
+     * {@code CARD_ADDED} - Card added email.
+     * {@code CARD_REMOVED} - Card removed email.
+     * {@code CARD_UPDATED} - Card updated email.
+     * {@code PASSWORD_RESET} - Password reset email.
+     * {@code VERIFICATION} - Account verification email.
+     */
+	public enum Template {
+        ACCOUNT_UPDATED,
+        CARD_ADDED,
+        CARD_REMOVED,
+		CARD_UPDATED,
+        PASSWORD_RESET,
+		VERIFICATION,
+	};
+
     /**
      * Creates a user verification email.
      * @param user The user to send it to.
