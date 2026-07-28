@@ -4,7 +4,7 @@ import {
   addMovie,
   fetchMovies,
   fetchShowrooms,
-  scheduleShowtime,
+  scheduleShowtimes,
 } from '../api/movies.js'
 import {
   fetchUsers,
@@ -36,7 +36,8 @@ const EMPTY_SHOWTIME = {
   movieId: '',
   showroomId: '',
   startTime: '',
-  endTime: '',
+  durationMinutes: '120',
+  repeatDays: '1',
 }
 
 const EMPTY_PROMOTION = {
@@ -136,17 +137,23 @@ export default function AdminPage() {
     setError('')
     setStatus('')
 
-    const { movieId, showroomId, startTime, endTime } = showtimeForm
+    const { movieId, showroomId, startTime, durationMinutes, repeatDays } = showtimeForm
+    const duration = Number(durationMinutes)
+    const repeat = Number(repeatDays)
     if (!movieId || !showroomId) {
       setError('Please choose a movie and a showroom.')
       return
     }
-    if (!startTime || !endTime) {
-      setError('Start and end times are required.')
+    if (!startTime) {
+      setError('A start time is required.')
       return
     }
-    if (endTime <= startTime) {
-      setError('End time must be after the start time.')
+    if (!Number.isInteger(duration) || duration <= 0) {
+      setError('Duration must be a whole number of minutes greater than zero.')
+      return
+    }
+    if (!Number.isInteger(repeat) || repeat < 1) {
+      setError('Repeat must be a whole number of at least 1 day.')
       return
     }
 
@@ -154,14 +161,16 @@ export default function AdminPage() {
 
     setSubmitting(true)
     try {
-      await scheduleShowtime(user.email, {
+      const result = await scheduleShowtimes(user.email, {
         movie: { id: movie.id, title: movie.title },
         showroomID: Number(showroomId),
         startTime,
-        endTime,
+        durationMinutes: duration,
+        repeatDays: repeat,
       })
       setShowtimeForm(EMPTY_SHOWTIME)
-      setStatus('Showtime scheduled.')
+      const skippedNote = result.skipped > 0 ? ` Skipped ${result.skipped} (conflicts).` : ''
+      setStatus(`Scheduled ${result.created} showtime(s).${skippedNote}`)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -317,7 +326,9 @@ export default function AdminPage() {
               <>
                 <h2>Schedule Showtime</h2>
                 <p className="panel-hint">
-                  Times that overlap an existing showtime in the same showroom will be rejected.
+                  The end time is set from the movie's duration. Repeat schedules the same
+                  slot on consecutive days; slots that overlap an existing showtime in the
+                  same showroom are skipped.
                 </p>
 
                 <form className="admin-form" onSubmit={handleScheduleShowtime}>
@@ -349,12 +360,17 @@ export default function AdminPage() {
                   </div>
 
                   <div className="field">
-                    <label htmlFor="endTime">End Time</label>
-                    <input id="endTime" name="endTime" type="datetime-local" value={showtimeForm.endTime} onChange={updateShowtimeField} />
+                    <label htmlFor="durationMinutes">Duration (minutes)</label>
+                    <input id="durationMinutes" name="durationMinutes" type="number" min="1" value={showtimeForm.durationMinutes} onChange={updateShowtimeField} />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="repeatDays">Repeat (days)</label>
+                    <input id="repeatDays" name="repeatDays" type="number" min="1" value={showtimeForm.repeatDays} onChange={updateShowtimeField} />
                   </div>
 
                   <button type="submit" className="admin-submit" disabled={submitting}>
-                    {submitting ? 'Scheduling...' : 'Schedule Showtime'}
+                    {submitting ? 'Scheduling...' : 'Schedule Showtimes'}
                   </button>
                 </form>
               </>

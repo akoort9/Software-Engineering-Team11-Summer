@@ -67,6 +67,7 @@ public class App {
 
 		server.createContext("/api/movies", App::handleMovies);
 		server.createContext("/api/showtimes", App::handleShowtimes);
+		server.createContext("/api/showtimes/batch", App::handleBatchShowtimes);
 		server.createContext("/api/showrooms", App::handleShowrooms);
 		server.createContext("/api/seats", App::handleSeats);
 		server.createContext("/api/bookings", App::handleBookings);
@@ -250,6 +251,69 @@ public class App {
 			return;
 		} // try-catch
     } // handlePostShowtimes
+
+	/**
+     * Routes requests to {@code /api/showtimes/batch} based on HTTP method.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handleBatchShowtimes(HttpExchange exchange) throws IOException {
+		exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
+		exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+		String method = exchange.getRequestMethod();
+
+		if (method.equals("OPTIONS")) {
+			exchange.sendResponseHeaders(204, -1);
+			return;
+		} else if (!method.equals("POST")) {
+			JsonResponse.send(exchange, 405, Map.of("error", "method not allowed"));
+			return;
+		} // if-elif
+
+		handlePostBatchShowtimes(exchange);
+    } // handleBatchShowtimes
+
+	/**
+     * Schedules a movie into a showroom for a fixed length, repeated over a
+     * number of consecutive days. Each generated slot is checked against
+     * existing showtimes in the same showroom; slots that overlap one are
+     * skipped rather than failing the whole request.
+     * @param exchange The HTTP exchange to respond to.
+     * @throws IOException if writing the response fails.
+     */
+    private static void handlePostBatchShowtimes(HttpExchange exchange) throws IOException {
+		ScheduleShowtimesRequest request =
+			GSON.fromJson(getBody(exchange), ScheduleShowtimesRequest.class);
+		if (!checkRequest(exchange, request)) { return; } // if
+
+		int movieId = db.resolveMovieId(request.movie);
+		java.time.LocalDateTime baseStart = request.getStartTime();
+
+		int created = 0;
+		int skipped = 0;
+		for (int day = 0; day < request.repeatDays; day++) {
+			java.time.LocalDateTime startDay = baseStart.plusDays(day);
+			java.time.LocalDateTime endDay = startDay.plusMinutes(request.durationMinutes);
+			java.sql.Timestamp start = java.sql.Timestamp.valueOf(startDay);
+			java.sql.Timestamp end = java.sql.Timestamp.valueOf(endDay);
+
+			if (db.hasShowtimeConflict(request.showroomID, start, end)) {
+				skipped++;
+				continue;
+			} // if
+
+			Showtime showtime = new Showtime(movieId, request.showroomID, start, end);
+			if (db.addShowtime(showtime)) {
+				created++;
+			} else {
+				skipped++;
+			} // if-else
+		} // for
+
+		JsonResponse.send(exchange, 201, Map.of("created", created, "skipped", skipped));
+    } // handlePostBatchShowtimes
 
 	/**
      * Routes requests to {@code /api/showrooms} based on HTTP method.
