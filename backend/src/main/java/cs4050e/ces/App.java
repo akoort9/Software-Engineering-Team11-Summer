@@ -449,8 +449,25 @@ public class App {
 			total += ticket.getPrice();
 		} // for
 
+		// Retrieve movie and showroom details for the email
+		Movie movie = db.getMovie(showtime.getMovieId());
+		String movieTitle = movie != null ? movie.getTitle() : "Unknown Movie";
+
+		String showroomName = "Unknown Showroom";
+		List<Showroom> showrooms = db.getShowrooms();
+		if (showrooms != null) {
+			for (Showroom sr : showrooms) {
+				if (sr.getId() == showtime.getShowroomId()) {
+					showroomName = sr.getName();
+					break;
+				}
+			}
+		}
+
+		String showtimeDate = showtime.getStartTime().toString();
+
 		// Send email confirmation
-		EmailResponse.sendTickets(user, booked.size(), total);
+		EmailResponse.sendTickets(user, booked.size(), total, ticketsOut, movieTitle, showroomName, showtimeDate);
 
 		JsonResponse.send(exchange, 201, Map.of(
 			"tickets", ticketsOut,

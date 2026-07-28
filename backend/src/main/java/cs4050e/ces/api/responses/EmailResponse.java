@@ -10,6 +10,10 @@ import cs4050e.ces.api.responses.EmailTemplates.Template;
 import cs4050e.ces.db.DataHandler;
 import cs4050e.ces.db.users.User;
 
+import java.util.List;
+import java.util.Map;
+
+
 /** Represents a response using an email. */
 public class EmailResponse implements Response {
 	/** Access to the database. */
@@ -158,14 +162,18 @@ public class EmailResponse implements Response {
 	 * @param user The customer to send it to.
 	 * @param ticketCount The amount of tickets purchased.
 	 * @param total The total price.
+     * @param ticketDetails The list containing specific seat, category, and price details.
+     * @param movieTitle The title of the movie.
+     * @param showroomName The name of the showroom.
+     * @param showtimeDate The date and time of the showing.
 	 * @return {@code true} if the email was sent, {@code false} otherwise.
 	 */
-	public static boolean sendTickets(User user, int ticketCount, double total) {
+	public static boolean sendTickets(User user, int ticketCount, double total, List<Map<String, Object>> ticketDetails, String movieTitle, String showroomName, String showtimeDate) {
 		if (user == null || !db.userExists(user.getEmail())) {
 			return false;
 		} 
 
-		Email email = EmailTemplates.getTicketsBookedEmail(user, ticketCount, total);
+		Email email = EmailTemplates.getTicketsBookedEmail(user, ticketCount, total, ticketDetails, movieTitle, showroomName, showtimeDate);
 		buildMailer().sendMail(email);
 		return true;
 	}
