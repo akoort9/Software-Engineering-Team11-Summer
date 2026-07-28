@@ -93,6 +93,7 @@ public class DataHandler {
 	    	Connection conn = driver.connect("jdbc:sqlite:" + filename, new java.util.Properties());
 
 			// create tables
+	    	// create tables
 	    	try (Statement stmt = conn.createStatement()) {
 				stmt.execute(Schema.MOVIES_TABLE);
 				stmt.execute(Schema.USERS_TABLE);
@@ -101,6 +102,7 @@ public class DataHandler {
 				stmt.execute(Schema.SHOWROOMS_TABLE);
 				stmt.execute(Schema.SEATS_TABLE);
 				stmt.execute(Schema.SHOWTIMES_TABLE);
+				stmt.execute(Schema.BOOKINGS_TABLE); 
 				stmt.execute(Schema.TICKETS_TABLE);
 				stmt.execute(Schema.PRICES_TABLE);
 				stmt.execute(Schema.PROMOTIONS_TABLE);
@@ -960,8 +962,10 @@ public class DataHandler {
 		} // if
 
 		// clear all records from database, don't drop tables
+		// clear all records from database, don't drop tables
 		try (Statement stmt = conn.createStatement()) {
 			stmt.execute("DELETE FROM tickets");
+			stmt.execute("DELETE FROM bookings"); 
 			stmt.execute("DELETE FROM showtimes");
 			stmt.execute("DELETE FROM seats");
 			stmt.execute("DELETE FROM showrooms");
@@ -974,7 +978,6 @@ public class DataHandler {
 		} catch (SQLException sqle) {
 			return false;
 		} // try-catch
-
 		// reset autoincrement counters so ids restart cleanly; this table
 		// only exists once an AUTOINCREMENT table has ever been inserted
 		// into, so a fresh, never-used database file won't have it yet
@@ -1300,32 +1303,6 @@ public class DataHandler {
 		} // try-catch
 	} // hasShowtimeConflict
 
-	/**
-	 * Adds a {@code Ticket} to the database.
-	 * @param ticket The ticker to add.
-	 * @return {@code true} if successful, {@code false} otherwise.
-	 */
-    public boolean addTicket(Ticket ticket) {
-        String sql = Schema.ADD_TICKET;
-
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			stmt.setInt(1, ticket.getUserId());
-			stmt.setInt(2, ticket.getShowtimeId());
-			stmt.setInt(3, ticket.getSeatId());
-			stmt.setDouble(4, ticket.getPrice());
-			stmt.setString(5, ticket.getTypeString());
-			stmt.setDate(6, ticket.getPurchaseDate());
-	    
-		    stmt.executeUpdate();
-
-			// get database ID
-			ticket.setId(getLatestDatabaseId());
-		    return true;
-		} catch (SQLException sqle) {
-	    	System.err.println("addTicket: " + sqle);
-		    return false;
-		} // try-catch
-    } // addTicket
 
     /**
      * Returns every showtime stored in the database.
@@ -1479,21 +1456,42 @@ public class DataHandler {
      * if the booking failed.
      */
     public List<Ticket> bookSeats(List<Ticket> tickets) {
+        if (tickets == null || tickets.isEmpty()) return null;
+
         try {
             conn.setAutoCommit(false);
 
+            // Calculate the total price for the parent booking
+            double totalPrice = 0;
+            for (Ticket t : tickets) {
+                totalPrice += t.getPrice();
+            }
+
+            // 1. Insert the parent Booking record first
+            int bookingId = -1;
+            try (PreparedStatement stmt = conn.prepareStatement(Schema.ADD_BOOKING)) {
+                stmt.setInt(1, tickets.get(0).getUserId());
+                stmt.setDate(2, tickets.get(0).getPurchaseDate());
+                stmt.setDouble(3, totalPrice);
+                stmt.setString(4, "ACTIVE");
+                stmt.executeUpdate();
+                bookingId = getLatestDatabaseId();
+            }
+
+            // 2. Insert the Tickets, tying them to the new bookingId
             for (Ticket ticket : tickets) {
                 try (PreparedStatement stmt = conn.prepareStatement(Schema.ADD_TICKET)) {
                     stmt.setInt(1, ticket.getUserId());
-                    stmt.setInt(2, ticket.getShowtimeId());
-                    stmt.setInt(3, ticket.getSeatId());
-                    stmt.setDouble(4, ticket.getPrice());
-                    stmt.setString(5, ticket.getTypeString());
-                    stmt.setDate(6, ticket.getPurchaseDate());
+                    stmt.setInt(2, bookingId); // Inject the new booking ID here
+                    stmt.setInt(3, ticket.getShowtimeId());
+                    stmt.setInt(4, ticket.getSeatId());
+                    stmt.setDouble(5, ticket.getPrice());
+                    stmt.setString(6, ticket.getTypeString());
+                    stmt.setDate(7, ticket.getPurchaseDate());
                     stmt.executeUpdate();
                     ticket.setId(getLatestDatabaseId());
-                } // try
-            } // for
+                } 
+            } 
 
             conn.commit();
             return tickets;
@@ -1503,16 +1501,16 @@ public class DataHandler {
                 conn.rollback();
             } catch (SQLException rollbackException) {
                 System.err.println("bookSeats(rollback): " + rollbackException);
-            } // try-catch
+            } 
             return null;
         } finally {
             try {
                 conn.setAutoCommit(true);
             } catch (SQLException autoCommitException) {
                 System.err.println("bookSeats(autoCommit): " + autoCommitException);
-            } // try-catch
-        } // try-catch-finally
-    } // bookSeats
+            } 
+        } 
+    }
 
 	/**
 	 * Adds a {@code Promotion} to the database.
@@ -1565,4 +1563,7 @@ public class DataHandler {
 			return null;
 		} // try-catch
 	} // getPromotions
+
+
+
 } // DataHandler

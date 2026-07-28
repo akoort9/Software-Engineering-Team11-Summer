@@ -122,9 +122,10 @@ class Schema {
                     "movie_id, showroom_id, start_time, end_time) VALUES (?, ?, ?, ?)";
 
     /** SQL statement to add a ticket. */
+/** SQL statement to add a ticket. */
     public static final String ADD_TICKET = "INSERT INTO tickets (" +
-                    "user_id, showtime_id, seat_id, price, ticket_class, purchase_date) " +
-                    "VALUES (?, ?, ?, ?, ?, ?)";
+                    "user_id, booking_id, showtime_id, seat_id, price, ticket_class, purchase_date) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     /** SQL statement to add a row of ticket prices. */
     public static final String ADD_PRICES = "INSERT INTO prices (" +
@@ -181,7 +182,9 @@ class Schema {
     public static final String UPDATE_PASSWORD = "UPDATE users SET password_hash = ?, " +
                     "reset_code = NULL, reset_code_expires = NULL WHERE email_address = ?";
 
-    /** */
+   /** SQL statement to add a booking. */
+    public static final String ADD_BOOKING = "INSERT INTO bookings (" +
+                    "user_id, booking_date, total_price, state) VALUES (?, ?, ?, ?)";
 
 
     /** */

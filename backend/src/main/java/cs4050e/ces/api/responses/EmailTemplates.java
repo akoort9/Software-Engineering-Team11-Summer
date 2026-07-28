@@ -26,15 +26,16 @@ public class EmailTemplates {
      * {@code VERIFICATION} - Account verification email.
      * {@code PROMOTION} - Promotional offer email.
      */
-	public enum Template {
-        ACCOUNT_UPDATED,
-        CARD_ADDED,
-        CARD_REMOVED,
-		CARD_UPDATED,
-        PASSWORD_RESET,
-		VERIFICATION,
-		PROMOTION,
-	};
+        public enum Template {
+                ACCOUNT_UPDATED,
+                CARD_ADDED,
+                CARD_REMOVED,
+                CARD_UPDATED,
+                PASSWORD_RESET,
+                VERIFICATION,
+                PROMOTION,
+                TICKETS_BOOKED
+            };
 
     /**
      * Creates a user verification email.
@@ -166,6 +167,25 @@ public class EmailTemplates {
             ? cardNumber.substring(cardNumber.length() - 4)
             : "????";
     } // lastFourOf
+
+    /**
+     * Creates a ticket confirmation email.
+     * @param user The user to send it to.
+     * @param ticketCount The number of tickets bought.
+     * @param total The total price of the booking.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getTicketsBookedEmail(User user, int ticketCount, double total) {
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Your Tickets are Confirmed!")
+            .withPlainText("Hello " + user.getName() + ",\n\n" +
+                "Your booking was successful! You have purchased " + ticketCount + 
+                " tickets for a total of $" + String.format("%.2f", total) + ".\n\n" +
+                "Enjoy the show!")
+            .buildEmail();
+    }
 
 
 } // EmailTemplates

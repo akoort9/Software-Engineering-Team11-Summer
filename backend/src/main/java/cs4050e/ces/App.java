@@ -449,13 +449,16 @@ public class App {
 			total += ticket.getPrice();
 		} // for
 
+		// Send email confirmation
+		EmailResponse.sendTickets(user, booked.size(), total);
+
 		JsonResponse.send(exchange, 201, Map.of(
 			"tickets", ticketsOut,
 			"totalPrice", total,
 			"showtimeId", request.showtimeId,
 			"purchaseDate", purchaseDate.toString()
 		));
-    } // handlePostBooking
+	} // handlePostBooking
 
 	/**
      * Routes requests to {@code /api/users} based on HTTP method.

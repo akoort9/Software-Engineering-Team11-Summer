@@ -152,4 +152,24 @@ public class EmailResponse implements Response {
 			.withTransportStrategy(TransportStrategy.SMTP_TLS)
 			.buildMailer();
 	} // buildMailer
+
+	/**
+	 * Sends a ticket confirmation email to a {@code User}.
+	 * @param user The customer to send it to.
+	 * @param ticketCount The amount of tickets purchased.
+	 * @param total The total price.
+	 * @return {@code true} if the email was sent, {@code false} otherwise.
+	 */
+	public static boolean sendTickets(User user, int ticketCount, double total) {
+		if (user == null || !db.userExists(user.getEmail())) {
+			return false;
+		} 
+
+		Email email = EmailTemplates.getTicketsBookedEmail(user, ticketCount, total);
+		buildMailer().sendMail(email);
+		return true;
+	}
+
+
+
 } // EmailResponse
