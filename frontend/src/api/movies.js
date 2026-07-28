@@ -41,3 +41,19 @@ export async function scheduleShowtime(adminEmail, { movie, showroomID, startTim
   return res.json()
 }
 
+export async function scheduleShowtimes(
+  adminEmail,
+  { movie, showroomID, startTime, durationMinutes, repeatDays }
+) {
+  const res = await fetch('/api/showtimes/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminEmail, movie, showroomID, startTime, durationMinutes, repeatDays }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.error || 'Failed to schedule showtimes')
+  }
+  return res.json()
+}
+
