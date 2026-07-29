@@ -34,14 +34,6 @@ const TICKET_TYPE_LABEL = {
   senior: 'Senior',
 }
 
-// Reverses TICKET_TYPE_FOR_API so the confirmation view (which echoes back
-// whatever ticket class the backend stored) can show a friendly label too.
-const TICKET_TYPE_LABEL_FOR_API = {
-  standard: 'Adult',
-  child: 'Child',
-  senior: 'Senior',
-}
-
 function reservationKey(showtimeId) {
   return `seat-reservation:${showtimeId}`
 }
@@ -84,8 +76,7 @@ export default function BookingPage() {
   const [seats, setSeats] = useState([])
   const [selectedSeatIds, setSelectedSeatIds] = useState([])
 
-  const [step, setStep] = useState('select') // 'select' | 'summary' | 'confirmed'
-  const [bookingResult, setBookingResult] = useState(null)
+  const [step, setStep] = useState('select') // 'select' | 'summary'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -271,8 +262,16 @@ export default function BookingPage() {
       })
 
       sessionStorage.removeItem(reservationKey(selectedShowtimeId))
-      setBookingResult(result)
-      setStep('confirmed')
+      navigate('/receipt', {
+        state: {
+          movieTitle: selectedMovie?.title,
+          showtimeLabel: selectedShowtime ? formatShowtimeLabel(selectedShowtime) : '',
+          tickets: result.tickets,
+          totalPrice: result.totalPrice,
+          transactionId: result.transactionId,
+          cardLastFour: result.cardLastFour,
+        },
+      })
     } catch (err) {
       if (err.status === 409) {
         setError(
@@ -297,28 +296,13 @@ export default function BookingPage() {
     }
   }
 
-  const handleStartOver = () => {
-    setStep('select')
-    setBookingResult(null)
-    setTicketCounts({ child: 0, adult: 0, senior: 0 })
-    setSelectedSeatIds([])
-    navigate('/')
-  }
-
   return (
     <main className="booking-page">
       <h1>Book Tickets</h1>
 
-      {step === 'confirmed' && bookingResult && (
-        <div className="success-message">
-          Booking confirmed! Total charged: ${bookingResult.totalPrice.toFixed(2)}
-        </div>
-      )}
-
       {error && <div className="error-message">{error}</div>}
 
-      {step !== 'confirmed' && (
-        <div className="booking-container">
+      <div className="booking-container">
           <div className="selection-group">
             <label htmlFor="movie-select">Select Movie:</label>
             <select
@@ -594,36 +578,6 @@ export default function BookingPage() {
             </div>
           )}
         </div>
-      )}
-
-      {step === 'confirmed' && bookingResult && (
-        <div className="booking-container">
-          <div className="seat-selection">
-            <h2>Thank you for your order!</h2>
-            <div className="booking-summary">
-              <div><strong>Movie:</strong> {selectedMovie?.title}</div>
-              <div><strong>Showtime:</strong> {selectedShowtime && formatShowtimeLabel(selectedShowtime)}</div>
-              <ul>
-                {bookingResult.tickets.map((t) => (
-                  <li key={t.id}>
-                    Seat {t.seatLabel} - {TICKET_TYPE_LABEL_FOR_API[t.ticketType.toLowerCase()] ?? t.ticketType} - $
-                    {t.price.toFixed(2)}
-                  </li>
-                ))}
-              </ul>
-              <div className="total-price">Total: ${bookingResult.totalPrice.toFixed(2)}</div>
-              {bookingResult.transactionId && (
-                <div className="transaction-id">Transaction: {bookingResult.transactionId}</div>
-              )}
-            </div>
-            <div className="purchase-summary">
-              <button type="button" className="book-button" onClick={handleStartOver}>
-                Back to Home
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

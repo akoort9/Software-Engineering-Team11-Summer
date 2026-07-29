@@ -565,7 +565,8 @@ public class App {
 			"totalPrice", total,
 			"showtimeId", request.showtimeId,
 			"purchaseDate", purchaseDate.toString(),
-			"transactionId", payment.transactionId
+			"transactionId", payment.transactionId,
+			"cardLastFour", cardLastFour
 		));
 	} // handlePostBooking
 

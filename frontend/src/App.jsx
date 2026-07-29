@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import MovieDetailPage from './pages/MovieDetailPage.jsx'
 import BookingPage from './pages/BookingPage.jsx'
+import ReceiptPage from './pages/ReceiptPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import VerifyPage from './pages/VerifyPage.jsx'
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/movies/:id" element={<MovieDetailPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/booking" element={<BookingPage />} />
+          <Route path="/receipt" element={<ReceiptPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify" element={<VerifyPage />} />
