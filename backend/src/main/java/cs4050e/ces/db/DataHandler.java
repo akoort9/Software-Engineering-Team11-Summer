@@ -24,6 +24,7 @@ import cs4050e.ces.db.users.User;
 import cs4050e.ces.db.users.Administrator;
 import cs4050e.ces.db.users.Customer;
 import cs4050e.ces.db.payment.Card;
+import cs4050e.ces.db.payment.Payment;
 import cs4050e.ces.db.payment.Promotion;
 
 /** Singleton class to provide access to the database. */
@@ -106,6 +107,7 @@ public class DataHandler {
 				stmt.execute(Schema.TICKETS_TABLE);
 				stmt.execute(Schema.PRICES_TABLE);
 				stmt.execute(Schema.PROMOTIONS_TABLE);
+				stmt.execute(Schema.PAYMENTS_TABLE);
 			} // try
 
 			// keep older database files compatible with newer columns
@@ -975,6 +977,7 @@ public class DataHandler {
 			stmt.execute("DELETE FROM favorite_movies");
 			stmt.execute("DELETE FROM payment_methods");
 			stmt.execute("DELETE FROM promotions");
+			stmt.execute("DELETE FROM payments");
 		} catch (SQLException sqle) {
 			return false;
 		} // try-catch
@@ -1564,6 +1567,30 @@ public class DataHandler {
 		} // try-catch
 	} // getPromotions
 
+	/**
+	 * Records a {@code Payment} in the database.
+	 * @param payment The payment to record.
+	 * @return {@code true} if successful, {@code false} otherwise.
+	 */
+	public boolean addPayment(Payment payment) {
+		String sql = Schema.ADD_PAYMENT;
 
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt(1, payment.getUserId());
+			stmt.setDouble(2, payment.getAmount());
+			stmt.setString(3, payment.getCardLastFour());
+			stmt.setString(4, payment.getStatus());
+			stmt.setString(5, payment.getTransactionId());
+			stmt.setString(6, new Timestamp(System.currentTimeMillis()).toString());
 
+			stmt.executeUpdate();
+
+			// get database ID
+			payment.setId(getLatestDatabaseId());
+			return true;
+		} catch (SQLException sqle) {
+			System.err.println("addPayment: " + sqle);
+			return false;
+		} // try-catch
+	} // addPayment
 } // DataHandler

@@ -18,11 +18,11 @@ export async function fetchSeats(showtimeId) {
   return res.json()
 }
 
-export async function bookTickets({ showtimeId, seats, email = getCurrentEmail() }) {
+export async function bookTickets({ showtimeId, seats, payment = {}, email = getCurrentEmail() }) {
   const res = await fetch('/api/bookings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, showtimeId, seats }),
+    body: JSON.stringify({ email, showtimeId, seats, ...payment }),
   })
 
   const data = await res.json().catch(() => ({}))

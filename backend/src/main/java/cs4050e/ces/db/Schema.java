@@ -98,6 +98,16 @@ class Schema {
                     "discount_percent DECIMAL, " +
                     "expiration_date DATE)";
 
+    /** SQL statement to create the 'payments' table. */
+    public static final String PAYMENTS_TABLE = "CREATE TABLE IF NOT EXISTS payments (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL REFERENCES users(id), " +
+                    "amount DECIMAL, " +
+                    "card_last4 TEXT, " +
+                    "status TEXT, " +
+                    "transaction_id TEXT, " +
+                    "created_at DATETIME)";
+
     /** SQL statement to add a movie. */
     public static final String ADD_MOVIE = "INSERT INTO movies (" +
                     "title, genre, \"desc\", poster, trailer, status, rating) " +
@@ -134,6 +144,11 @@ class Schema {
     /** SQL statement to add a promotion. */
     public static final String ADD_PROMOTION = "INSERT INTO promotions (" +
                     "promo_code, discount_percent, expiration_date) VALUES (?, ?, ?)";
+
+    /** SQL statement to add a payment. */
+    public static final String ADD_PAYMENT = "INSERT INTO payments (" +
+                    "user_id, amount, card_last4, status, transaction_id, created_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
 
     /** SQL statement to set a user's account state. */
     public static final String SET_USER_STATE = "UPDATE users SET state = ? " +

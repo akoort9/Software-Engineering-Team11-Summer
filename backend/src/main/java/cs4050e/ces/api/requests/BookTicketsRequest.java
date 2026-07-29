@@ -31,6 +31,24 @@ public class BookTicketsRequest extends UserRequest {
     /** The seats being booked, each with its own ticket class. */
     public List<SeatSelection> seats;
 
+    /** The id of a saved card to charge, or {@code null} to use an entered card. */
+    public Integer cardId;
+
+    /** An entered card number, when not paying with a saved card. */
+    public String cardNumber;
+
+    /** An entered card's expiration date, formatted "YYYY-MM". */
+    public String expirationDate;
+
+    /** An entered card's security code; validated but never stored. */
+    public String cvv;
+
+    /** The billing address for an entered card. */
+    public String billingAddress;
+
+    /** Whether to save an entered card to the customer's profile. */
+    public boolean saveCard;
+
     /**
      * Checks if a {@code BookTicketsRequest} is valid.
      * @param exchange The exchange to send error codes to.
@@ -72,6 +90,11 @@ public class BookTicketsRequest extends UserRequest {
                 return false;
             } // try-catch
         } // for
+
+        if (cardId == null && (cardNumber == null || cardNumber.trim().isEmpty())) {
+            JsonResponse.send(exchange, 400, Map.of("error", "a payment method is required"));
+            return false;
+        } // if
 
         return true;
     } // check

@@ -406,3 +406,53 @@
     padding: 15px;
   }
 }
+
+.payment-section {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.payment-section h3 {
+  margin: 0 0 12px;
+  color: var(--text-h);
+}
+
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  color: var(--text-h);
+}
+
+.payment-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  margin: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+}
+
+.payment-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.new-card-fields .card-row {
+  display: flex;
+  gap: 10px;
+}
+
+.transaction-id {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

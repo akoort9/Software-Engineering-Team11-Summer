@@ -24,6 +24,8 @@ import cs4050e.ces.db.theatre.Seat;
 import cs4050e.ces.db.theatre.Showroom;
 import cs4050e.ces.db.theatre.Showtime;
 import cs4050e.ces.db.payment.Card;
+import cs4050e.ces.db.payment.Payment;
+import cs4050e.ces.db.payment.PaymentProcessor;
 import cs4050e.ces.db.payment.Promotion;
 import cs4050e.ces.db.payment.Ticket;
 import cs4050e.ces.db.users.*;
@@ -481,12 +483,27 @@ public class App {
 			return;
 		} // if
 
+		// build the tickets and total up-front so the card is charged before
+		// any seat is reserved; a declined payment never books a seat
 		java.sql.Date purchaseDate = new java.sql.Date(System.currentTimeMillis());
 		List<Ticket> tickets = new ArrayList<>();
+		double total = 0;
 		for (BookTicketsRequest.SeatSelection selection : request.seats) {
 			Ticket.TicketType type = Ticket.TicketType.valueOf(selection.ticketType.toUpperCase());
-			tickets.add(new Ticket(user.getId(), request.showtimeId, selection.seatId, type, purchaseDate));
+			Ticket ticket = new Ticket(user.getId(), request.showtimeId, selection.seatId, type, purchaseDate);
+			tickets.add(ticket);
+			total += ticket.getPrice();
 		} // for
+
+		// resolve the payment card (saved or entered) and authorize the charge
+		Card card = resolvePaymentCard(exchange, user, request);
+		if (card == null) { return; } // resolvePaymentCard already responded
+
+		PaymentProcessor.Result payment = PaymentProcessor.process(card, request.cvv, total);
+		if (!payment.approved) {
+			JsonResponse.send(exchange, 402, Map.of("error", "payment declined: " + payment.reason));
+			return;
+		} // if
 
 		List<Ticket> booked = db.bookSeats(tickets);
 		if (booked == null) {
@@ -495,12 +512,23 @@ public class App {
 			return;
 		} // if
 
+		// record the (simulated) transaction now that the seats are secured
+		String cardLastFour = lastFour(card.getCardNumber());
+		db.addPayment(new Payment(user.getId(), total, cardLastFour, "APPROVED", payment.transactionId));
+
+		// save a newly entered card if the customer opted to
+		if (request.saveCard && request.cardId == null) {
+			List<Card> existingCards = db.getCards(user);
+			if (existingCards == null || existingCards.size() < Customer.MAX_CARDS) {
+				db.addCard(user, card);
+			} // if
+		} // if
+
 		Map<Integer, String> seatLabels = new HashMap<>();
 		for (Seat seat : db.getSeats(showtime.getShowroomId())) {
 			seatLabels.put(seat.getId(), seat.getLabel());
 		} // for
 
-		double total = 0;
 		List<Map<String, Object>> ticketsOut = new ArrayList<>();
 		for (Ticket ticket : booked) {
 			Map<String, Object> t = new HashMap<>();
@@ -510,7 +538,6 @@ public class App {
 			t.put("ticketType", ticket.getTypeString());
 			t.put("price", ticket.getPrice());
 			ticketsOut.add(t);
-			total += ticket.getPrice();
 		} // for
 
 		// Retrieve movie and showroom details for the email
@@ -537,9 +564,77 @@ public class App {
 			"tickets", ticketsOut,
 			"totalPrice", total,
 			"showtimeId", request.showtimeId,
-			"purchaseDate", purchaseDate.toString()
+			"purchaseDate", purchaseDate.toString(),
+			"transactionId", payment.transactionId
 		));
 	} // handlePostBooking
+
+	/**
+	 * Resolves the card to charge for a booking: either a saved card the
+	 * customer selected, or a card entered at checkout. Sends an error
+	 * response and returns {@code null} if the card can't be resolved.
+	 * @param exchange The HTTP exchange to respond to.
+	 * @param user The customer making the booking.
+	 * @param request The booking request carrying the payment details.
+	 * @return The resolved {@code Card}, or {@code null} if an error was sent.
+	 * @throws IOException if writing the response fails.
+	 */
+	private static Card resolvePaymentCard(HttpExchange exchange, User user, BookTicketsRequest request)
+			throws IOException {
+		// saved card
+		if (request.cardId != null) {
+			List<Card> cards = db.getCards(user);
+			Card found = null;
+			if (cards != null) {
+				for (Card c : cards) {
+					if (c.getId() == request.cardId) {
+						found = c;
+						break;
+					} // if
+				} // for
+			} // if
+			if (found == null) {
+				JsonResponse.send(exchange, 400, Map.of("error", "selected card not found"));
+				return null;
+			} // if
+			return found;
+		} // if
+
+		// entered card
+		if (request.cardNumber == null || request.expirationDate == null
+				|| !request.expirationDate.contains("-")) {
+			JsonResponse.send(exchange, 400, Map.of("error", "a payment card is required"));
+			return null;
+		} // if
+
+		String[] parts = request.expirationDate.split("-");
+		int year;
+		int month;
+		try {
+			year = Integer.parseInt(parts[0]);
+			month = Integer.parseInt(parts[1]);
+		} catch (NumberFormatException nfe) {
+			JsonResponse.send(exchange, 400, Map.of("error", "invalid expiration date"));
+			return null;
+		} // try-catch
+
+		String billing = request.billingAddress == null ? "" : request.billingAddress;
+		return new Card(request.cardNumber.replaceAll("\\s+", ""), billing, year, month);
+	} // resolvePaymentCard
+
+	/**
+	 * Returns the last four digits of a card number, for storing on a receipt
+	 * without keeping the full number.
+	 * @param cardNumber The card number.
+	 * @return The last four digits, or the whole value if shorter than four.
+	 */
+	private static String lastFour(String cardNumber) {
+		if (cardNumber == null) {
+			return "????";
+		} // if
+		String digits = cardNumber.replaceAll("\\s+", "");
+		return digits.length() >= 4 ? digits.substring(digits.length() - 4) : digits;
+	} // lastFour
 
 	/**
      * Routes requests to {@code /api/users} based on HTTP method.

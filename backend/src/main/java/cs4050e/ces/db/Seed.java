@@ -127,13 +127,13 @@ class Seed {
 	};
 
 	public static final Card[] cards = {
-		new Card("1234 5678 9101 1121",
+		new Card("4242 4242 4242 4242",
 			"123 Nouveau Riche Ln, Marietta GA 30006",
 			2032, 8),
-		new Card("4482 5637 9101 1234",
+		new Card("5555 5555 5555 4444",
 			"123 Nouveau Riche Ln, Marietta GA 30006",
 			2036, 2),
-		new Card("6769 5678 9101 8008",
+		new Card("4111 1111 1111 1111",
 			"123 Nouveau Riche Ln, Marietta GA 30006",
 			2028, 4)
 	};

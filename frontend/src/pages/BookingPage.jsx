@@ -2,9 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { fetchShowtimesForMovie, fetchSeats, bookTickets } from '../api/booking.js'
+import { fetchCards } from '../api/users.js'
 import { formatShowtimeLabel } from '../utils/showtimes.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import '../styles/BookingPage.css'
+
+const EMPTY_NEW_CARD = {
+  cardNumber: '',
+  expirationDate: '',
+  cvv: '',
+  billingAddress: '',
+}
 
 const TICKET_PRICES = {
   child: 8,
@@ -81,6 +89,12 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const [savedCards, setSavedCards] = useState([])
+  const [paymentMode, setPaymentMode] = useState('new') // 'saved' | 'new'
+  const [selectedCardId, setSelectedCardId] = useState('')
+  const [newCard, setNewCard] = useState(EMPTY_NEW_CARD)
+  const [saveCard, setSaveCard] = useState(false)
+
   const totalTickets = ticketCounts.child + ticketCounts.adult + ticketCounts.senior
   const canConfirmBooking = totalTickets > 0 && selectedSeatIds.length === totalTickets
 
@@ -104,6 +118,23 @@ export default function BookingPage() {
       .then(setMovies)
       .catch((err) => setError(err.message))
   }, [])
+
+  // load the customer's saved cards so they can pay with one at checkout
+  useEffect(() => {
+    if (!user) {
+      setSavedCards([])
+      return
+    }
+    fetchCards(user.email)
+      .then((cards) => {
+        setSavedCards(cards)
+        if (cards.length > 0) {
+          setPaymentMode('saved')
+          setSelectedCardId(String(cards[0].id))
+        }
+      })
+      .catch(() => {})
+  }, [user])
 
   // load showtimes whenever the selected movie changes
   useEffect(() => {
@@ -192,8 +223,42 @@ export default function BookingPage() {
     setStep('summary')
   }
 
+  const updateNewCardField = (e) =>
+    setNewCard({ ...newCard, [e.target.name]: e.target.value })
+
+  const validatePayment = () => {
+    if (paymentMode === 'saved') {
+      return selectedCardId ? '' : 'Please choose a saved card.'
+    }
+    const number = newCard.cardNumber.replace(/\s+/g, '')
+    if (!/^\d{13,19}$/.test(number)) return 'Enter a valid card number (13-19 digits).'
+    if (!/^\d{4}-\d{2}$/.test(newCard.expirationDate)) return 'Enter an expiration date (YYYY-MM).'
+    if (!/^\d{3,4}$/.test(newCard.cvv)) return 'Enter a valid security code (3-4 digits).'
+    return ''
+  }
+
+  const buildPayment = () => {
+    if (paymentMode === 'saved') {
+      return { cardId: Number(selectedCardId) }
+    }
+    return {
+      cardNumber: newCard.cardNumber.replace(/\s+/g, ''),
+      expirationDate: newCard.expirationDate,
+      cvv: newCard.cvv,
+      billingAddress: newCard.billingAddress,
+      saveCard,
+    }
+  }
+
   const handleConfirmBooking = async () => {
     setError('')
+
+    const paymentError = validatePayment()
+    if (paymentError) {
+      setError(paymentError)
+      return
+    }
+
     setLoading(true)
     try {
       const result = await bookTickets({
@@ -202,6 +267,7 @@ export default function BookingPage() {
           seatId: a.seatId,
           ticketType: TICKET_TYPE_FOR_API[a.type],
         })),
+        payment: buildPayment(),
       })
 
       sessionStorage.removeItem(reservationKey(selectedShowtimeId))
@@ -223,6 +289,7 @@ export default function BookingPage() {
           // keep whatever seat data we already have
         }
       } else {
+        // payment declines (402) and other errors keep the user on checkout to retry
         setError(err.message)
       }
     } finally {
@@ -422,6 +489,90 @@ export default function BookingPage() {
                 <div className="total-price">Total: ${totalCost.toFixed(2)}</div>
               </div>
 
+              <div className="payment-section">
+                <h3>Payment</h3>
+
+                {savedCards.length > 0 && (
+                  <label className="payment-option">
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      checked={paymentMode === 'saved'}
+                      onChange={() => setPaymentMode('saved')}
+                    />
+                    Use a saved card
+                  </label>
+                )}
+
+                {paymentMode === 'saved' && savedCards.length > 0 && (
+                  <select
+                    className="payment-input"
+                    value={selectedCardId}
+                    onChange={(e) => setSelectedCardId(e.target.value)}
+                  >
+                    {savedCards.map((card) => (
+                      <option key={card.id} value={card.id}>
+                        •••• {card.cardNumber.slice(-4)} (exp {card.expirationDate})
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <label className="payment-option">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    checked={paymentMode === 'new'}
+                    onChange={() => setPaymentMode('new')}
+                  />
+                  Use a new card
+                </label>
+
+                {paymentMode === 'new' && (
+                  <div className="new-card-fields">
+                    <input
+                      className="payment-input"
+                      name="cardNumber"
+                      placeholder="Card number"
+                      value={newCard.cardNumber}
+                      onChange={updateNewCardField}
+                    />
+                    <div className="card-row">
+                      <input
+                        className="payment-input"
+                        name="expirationDate"
+                        type="month"
+                        placeholder="YYYY-MM"
+                        value={newCard.expirationDate}
+                        onChange={updateNewCardField}
+                      />
+                      <input
+                        className="payment-input"
+                        name="cvv"
+                        placeholder="CVV"
+                        value={newCard.cvv}
+                        onChange={updateNewCardField}
+                      />
+                    </div>
+                    <input
+                      className="payment-input"
+                      name="billingAddress"
+                      placeholder="Billing address"
+                      value={newCard.billingAddress}
+                      onChange={updateNewCardField}
+                    />
+                    <label className="payment-option">
+                      <input
+                        type="checkbox"
+                        checked={saveCard}
+                        onChange={(e) => setSaveCard(e.target.checked)}
+                      />
+                      Save this card to my profile
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <div className="purchase-summary">
                 <button
                   type="button"
@@ -461,6 +612,9 @@ export default function BookingPage() {
                 ))}
               </ul>
               <div className="total-price">Total: ${bookingResult.totalPrice.toFixed(2)}</div>
+              {bookingResult.transactionId && (
+                <div className="transaction-id">Transaction: {bookingResult.transactionId}</div>
+              )}
             </div>
             <div className="purchase-summary">
               <button type="button" className="book-button" onClick={handleStartOver}>
