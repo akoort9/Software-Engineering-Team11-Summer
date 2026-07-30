@@ -514,7 +514,12 @@ public class App {
 
 		// record the (simulated) transaction now that the seats are secured
 		String cardLastFour = lastFour(card.getCardNumber());
-		db.addPayment(new Payment(user.getId(), total, cardLastFour, "APPROVED", payment.transactionId));
+		Payment paymentRecord = new Payment(user.getId(), total, cardLastFour, "APPROVED", payment.transactionId);
+		db.addPayment(paymentRecord);
+
+		// the payment's database id is unique and stable, so it doubles as
+		// the order/confirmation number shown to the customer
+		String confirmationNumber = "CES-" + String.format("%06d", paymentRecord.getId());
 
 		// save a newly entered card if the customer opted to
 		if (request.saveCard && request.cardId == null) {
@@ -558,7 +563,8 @@ public class App {
 		String showtimeDate = showtime.getStartTime().toString();
 
 		// Send email confirmation
-		EmailResponse.sendTickets(user, booked.size(), total, ticketsOut, movieTitle, showroomName, showtimeDate);
+		EmailResponse.sendTickets(user, booked.size(), total, ticketsOut, movieTitle, showroomName, showtimeDate,
+			confirmationNumber);
 
 		JsonResponse.send(exchange, 201, Map.of(
 			"tickets", ticketsOut,
@@ -566,7 +572,8 @@ public class App {
 			"showtimeId", request.showtimeId,
 			"purchaseDate", purchaseDate.toString(),
 			"transactionId", payment.transactionId,
-			"cardLastFour", cardLastFour
+			"cardLastFour", cardLastFour,
+			"confirmationNumber", confirmationNumber
 		));
 	} // handlePostBooking
 

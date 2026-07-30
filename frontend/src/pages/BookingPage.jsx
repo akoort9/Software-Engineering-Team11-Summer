@@ -270,6 +270,7 @@ export default function BookingPage() {
           totalPrice: result.totalPrice,
           transactionId: result.transactionId,
           cardLastFour: result.cardLastFour,
+          confirmationNumber: result.confirmationNumber,
         },
       })
     } catch (err) {

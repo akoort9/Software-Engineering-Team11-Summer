@@ -166,14 +166,15 @@ public class EmailResponse implements Response {
      * @param movieTitle The title of the movie.
      * @param showroomName The name of the showroom.
      * @param showtimeDate The date and time of the showing.
+     * @param confirmationNumber The order confirmation number for this booking.
 	 * @return {@code true} if the email was sent, {@code false} otherwise.
 	 */
-	public static boolean sendTickets(User user, int ticketCount, double total, List<Map<String, Object>> ticketDetails, String movieTitle, String showroomName, String showtimeDate) {
+	public static boolean sendTickets(User user, int ticketCount, double total, List<Map<String, Object>> ticketDetails, String movieTitle, String showroomName, String showtimeDate, String confirmationNumber) {
 		if (user == null || !db.userExists(user.getEmail())) {
 			return false;
 		} 
 
-		Email email = EmailTemplates.getTicketsBookedEmail(user, ticketCount, total, ticketDetails, movieTitle, showroomName, showtimeDate);
+		Email email = EmailTemplates.getTicketsBookedEmail(user, ticketCount, total, ticketDetails, movieTitle, showroomName, showtimeDate, confirmationNumber);
 		buildMailer().sendMail(email);
 		return true;
 	}

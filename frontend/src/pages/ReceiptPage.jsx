@@ -29,6 +29,7 @@ export default function ReceiptPage() {
     totalPrice = 0,
     transactionId,
     cardLastFour,
+    confirmationNumber,
   } = receipt
 
   return (
@@ -60,7 +61,7 @@ export default function ReceiptPage() {
         <div className="receipt-section">
           <div className="order-number">
             <span className="order-number-label">Order Number</span>
-            <span className="order-number-value">67</span>
+            <span className="order-number-value">{confirmationNumber ?? '—'}</span>
           </div>
         </div>
 

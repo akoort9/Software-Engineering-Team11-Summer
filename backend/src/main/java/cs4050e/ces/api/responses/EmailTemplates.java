@@ -179,14 +179,17 @@ public class EmailTemplates {
      * @param movieTitle The title of the movie.
      * @param showroomName The name of the showroom.
      * @param showtimeDate The date and time of the showing.
+     * @param confirmationNumber The order confirmation number for this booking.
      * @return An {@code Email} ready to send.
      */
-    static Email getTicketsBookedEmail(User user, int ticketCount, double total, List<Map<String, Object>> ticketDetails, String movieTitle, String showroomName, String showtimeDate) {
+    static Email getTicketsBookedEmail(User user, int ticketCount, double total, List<Map<String, Object>> ticketDetails, String movieTitle, String showroomName, String showtimeDate, String confirmationNumber) {
         StringBuilder emailBody = new StringBuilder();
         emailBody.append("Hello ").append(user.getName()).append(",\n\n");
         emailBody.append("Your booking was successful! You have purchased ").append(ticketCount)
                  .append(" tickets for a total of $").append(String.format("%.2f", total)).append(".\n\n");
-        
+
+        emailBody.append("Confirmation Number: ").append(confirmationNumber).append("\n\n");
+
         emailBody.append("Movie: ").append(movieTitle).append("\n");
         emailBody.append("Showroom: ").append(showroomName).append("\n");
         emailBody.append("Date & Time: ").append(showtimeDate).append("\n\n");
