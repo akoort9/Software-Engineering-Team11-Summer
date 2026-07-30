@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
 import { fetchAllShowtimes } from '../api/booking.js'
 import { statusLabel } from '../utils/statusLabel.js'
-import { formatShowtimeLabel } from '../utils/showtimes.js'
+import { formatShowtimeLabel, getShowtimeDateKey, formatDateKeyLabel } from '../utils/showtimes.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { useFavorites } from '../hooks/useFavorites.js'
 import FavoriteStar from '../components/FavoriteStar.jsx'
@@ -17,6 +17,7 @@ export default function HomePage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
+  const [date, setDate] = useState('')
   const [showSuggested, setShowSuggested] = useState(false)
 
   useEffect(() => {
@@ -30,6 +31,10 @@ export default function HomePage() {
 
   const genres = [...new Set(movies.map((movie) => movie.genre).filter(Boolean))]
 
+  const showtimeDates = [...new Set(showtimes.map(getShowtimeDateKey).filter(Boolean))].sort()
+
+  const getMovieShowtimes = (movieId) => showtimes.filter((st) => st.movieId === movieId)
+
  const favoritedGenres = new Set(
   movies
     .filter((movie) => isFavorited(movie.id))
@@ -42,7 +47,13 @@ const visibleMovies = movies.filter((movie) => {
   const matchesGenre = !genre || movie.genre === genre
   const matchesSuggested =
     !showSuggested || (favoritedGenres.has(movie.genre) && !isFavorited(movie.id))
-  return matchesTitle && matchesGenre && matchesSuggested
+  const movieShowtimes = getMovieShowtimes(movie.id)
+  const latestShowingDate = movieShowtimes
+    .map(getShowtimeDateKey)
+    .sort()
+    .at(-1)
+  const matchesDate = !date || latestShowingDate === date
+  return matchesTitle && matchesGenre && matchesSuggested && matchesDate
 })
 
   const sortedMovies = [...visibleMovies].sort(
@@ -97,8 +108,17 @@ return (
           ))}
         </select>
 
-        <select className="filter-select" disabled>
-          <option>Filter by date (coming soon)</option>
+        <select
+          className="filter-select"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        >
+          <option value="">Filter by date</option>
+          {showtimeDates.map((d) => (
+            <option key={d} value={d}>
+              {formatDateKeyLabel(d)}
+            </option>
+          ))}
         </select>
 
         <button
@@ -144,7 +164,7 @@ return (
           <p className="movie-genre">{movie.genre}</p>
           <p className="movie-status">{statusLabel(movie.status)}</p>
           {(() => {
-            const movieShowtimes = showtimes.filter((st) => st.movieId === movie.id)
+            const movieShowtimes = getMovieShowtimes(movie.id)
             return movieShowtimes.length > 0 && movie.status ? (
               <ul className="showtimes">
                 {movieShowtimes.map((st) => (
