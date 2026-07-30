@@ -3,6 +3,10 @@ package cs4050e.ces.api.responses;
 import org.simplejavamail.api.email.Email;
 import org.simplejavamail.email.EmailBuilder;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
 import cs4050e.ces.db.users.User;
 import cs4050e.ces.db.payment.Card;
 
@@ -22,15 +26,18 @@ public class EmailTemplates {
      * {@code CARD_UPDATED} - Card updated email.
      * {@code PASSWORD_RESET} - Password reset email.
      * {@code VERIFICATION} - Account verification email.
+     * {@code PROMOTION} - Promotional offer email.
      */
-	public enum Template {
-        ACCOUNT_UPDATED,
-        CARD_ADDED,
-        CARD_REMOVED,
-		CARD_UPDATED,
-        PASSWORD_RESET,
-		VERIFICATION,
-	};
+        public enum Template {
+                ACCOUNT_UPDATED,
+                CARD_ADDED,
+                CARD_REMOVED,
+                CARD_UPDATED,
+                PASSWORD_RESET,
+                VERIFICATION,
+                PROMOTION,
+                TICKETS_BOOKED
+            };
 
     /**
      * Creates a user verification email.
@@ -137,12 +144,70 @@ public class EmailTemplates {
             .buildEmail();
     } // getCardRemovedEmail
 
+    /**
+     * Creates a promotional offer email.
+     * @param user The customer to send it to.
+     * @param promoCode The code the customer enters to redeem the offer.
+     * @param percentOff The percentage taken off the price.
+     * @param expiration The date the promotion expires.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getPromotionEmail(User user, String promoCode, double percentOff, LocalDate expiration) {
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: A special offer for you")
+            .withPlainText("Hello " + user.getName() + ", enjoy " + (int) percentOff +
+                "% off your next booking with code " + promoCode + ". This offer expires " +
+                expiration + ". You are receiving this because you subscribed to promotions.")
+            .buildEmail();
+    } // getPromotionEmail
+
     /** Masks a card number down to its last 4 digits. */
     private static String lastFourOf(String cardNumber) {
         return cardNumber != null && cardNumber.length() >= 4
             ? cardNumber.substring(cardNumber.length() - 4)
             : "????";
     } // lastFourOf
+
+   /**
+     * Creates a ticket confirmation email.
+     * @param user The user to send it to.
+     * @param ticketCount The number of tickets bought.
+     * @param total The total price of the booking.
+     * @param ticketDetails The list containing specific seat, category, and price details.
+     * @param movieTitle The title of the movie.
+     * @param showroomName The name of the showroom.
+     * @param showtimeDate The date and time of the showing.
+     * @return An {@code Email} ready to send.
+     */
+    static Email getTicketsBookedEmail(User user, int ticketCount, double total, List<Map<String, Object>> ticketDetails, String movieTitle, String showroomName, String showtimeDate) {
+        StringBuilder emailBody = new StringBuilder();
+        emailBody.append("Hello ").append(user.getName()).append(",\n\n");
+        emailBody.append("Your booking was successful! You have purchased ").append(ticketCount)
+                 .append(" tickets for a total of $").append(String.format("%.2f", total)).append(".\n\n");
+        
+        emailBody.append("Movie: ").append(movieTitle).append("\n");
+        emailBody.append("Showroom: ").append(showroomName).append("\n");
+        emailBody.append("Date & Time: ").append(showtimeDate).append("\n\n");
+        
+        emailBody.append("Ticket Details:\n");
+        for (Map<String, Object> ticket : ticketDetails) {
+            emailBody.append("- Seat: ").append(ticket.get("seatLabel"))
+                     .append(" | Category: ").append(ticket.get("ticketType"))
+                     .append(" | Price: $").append(String.format("%.2f", ticket.get("price")))
+                     .append("\n");
+        }
+        
+        emailBody.append("\nEnjoy the show!");
+
+        return EmailBuilder.startingBlank()
+            .from(CES_NAME, CES_FROM_ADDRESS)
+            .to(user.getName(), user.getEmail())
+            .withSubject("Cinema E-booking System: Your Tickets are Confirmed!")
+            .withPlainText(emailBody.toString())
+            .buildEmail();
+    }
 
 
 } // EmailTemplates

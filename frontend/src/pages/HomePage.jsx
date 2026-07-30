@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchMovies } from '../api/movies.js'
+import { fetchAllShowtimes } from '../api/booking.js'
 import { statusLabel } from '../utils/statusLabel.js'
-import { getShowtimes } from '../utils/showtimes.js'
+import { formatShowtimeLabel } from '../utils/showtimes.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { useFavorites } from '../hooks/useFavorites.js'
 import FavoriteStar from '../components/FavoriteStar.jsx'
@@ -12,6 +13,7 @@ export default function HomePage() {
   const { user, logout } = useAuth()
   const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
   const [movies, setMovies] = useState([])
+  const [showtimes, setShowtimes] = useState([])
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
@@ -21,6 +23,9 @@ export default function HomePage() {
     fetchMovies()
       .then(setMovies)
       .catch((err) => setError(err.message))
+    fetchAllShowtimes()
+      .then(setShowtimes)
+      .catch(() => {})
   }, [])
 
   const genres = [...new Set(movies.map((movie) => movie.genre).filter(Boolean))]
@@ -70,33 +75,40 @@ return (
       </nav>
     </header>
 
-      <input
-        type="text"
-        placeholder="Search by title"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="filter-bar">
+        <input
+          type="text"
+          className="filter-search"
+          placeholder="Search by title"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-      <select value={genre} onChange={(e) => setGenre(e.target.value)}>
-        <option value="">All genres</option>
-        {genres.map((g) => (
-          <option key={g} value={g}>
-            {g}
-          </option>
-        ))}
-      </select>
+        <select
+          className="filter-select"
+          value={genre}
+          onChange={(e) => setGenre(e.target.value)}
+        >
+          <option value="">All genres</option>
+          {genres.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
 
-      <select disabled>
-        <option>Filter by date (coming soon)</option>
-      </select>
+        <select className="filter-select" disabled>
+          <option>Filter by date (coming soon)</option>
+        </select>
 
-      <button
-        type="button"
-        className={`filter-toggle${showSuggested ? ' active' : ''}`}
-        onClick={() => setShowSuggested((prev) => !prev)}
-      >
-        Suggested
-      </button>
+        <button
+          type="button"
+          className={`filter-toggle${showSuggested ? ' active' : ''}`}
+          onClick={() => setShowSuggested((prev) => !prev)}
+        >
+          Suggested
+        </button>
+      </div>
 
       {error && <p>{error}</p>}
 
@@ -131,50 +143,31 @@ return (
     </div>
           <p className="movie-genre">{movie.genre}</p>
           <p className="movie-status">{statusLabel(movie.status)}</p>
-          {getShowtimes(movie).length > 0 && movie.status ? (
-            <ul className="showtimes">
-              {getShowtimes(movie).map((time) => (
-                <li key={time}>
-                  <Link
-                    to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
-                    className="showtime"
-                  >
-                    {time}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No showtimes listed.</p>
-          )}
+          {(() => {
+            const movieShowtimes = showtimes.filter((st) => st.movieId === movie.id)
+            return movieShowtimes.length > 0 && movie.status ? (
+              <ul className="showtimes">
+                {movieShowtimes.map((st) => (
+                  <li key={st.id}>
+                    <Link
+                      to={`/booking?movieId=${movie.id}&showtimeId=${st.id}`}
+                      className="showtime"
+                    >
+                      {formatShowtimeLabel(st)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No showtimes listed.</p>
+            )
+          })()}
         </article>
       </Fragment>
     )
   })}
 </div>
 
-      {user ? (
-        <p>
-          Welcome, {user.name || user.email}
-          {user.isAdmin && ' (admin)'} |{' '}
-          <Link to="/booking">Book Seats</Link> |{' '}
-          {user.isAdmin && (
-            <>
-              <Link to="/admin">Admin</Link> |{' '}
-            </>
-          )}
-          <Link to="/edit-profile">Edit Profile</Link> |{' '}
-          <button type="button" onClick={logout}>
-            Log Out
-          </button>
-        </p>
-      ) : (
-        <div className="book-seats-cta">
-          <Link to="/booking" className="book-seats-btn">
-            Book Seats
-          </Link>
-    </div>
-      )}
     </main>
   )
 }

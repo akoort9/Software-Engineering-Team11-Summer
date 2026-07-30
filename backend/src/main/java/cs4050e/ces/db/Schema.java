@@ -64,16 +64,25 @@ class Schema {
                     "start_time DATETIME, " +
                     "end_time DATETIME)";
 
-    /** SQL statement to create the 'tickets' table. */
-    public static final String TICKETS_TABLE = "CREATE TABLE IF NOT EXISTS tickets (" +
+    /** SQL statement to create the 'bookings' table. */
+    public static final String BOOKINGS_TABLE = "CREATE TABLE IF NOT EXISTS bookings (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "user_id INTEGER NOT NULL REFERENCES users(id), " +
-                    "showtime_id INTEGER NOT NULL REFERENCES showtimes(id), " +
-                    "seat_id INTEGER NOT NULL REFERENCES seats(id), " +
-                    "price DECIMAL, " +
-                    "ticket_class TEXT, " +
-                    "purchase_date DATETIME, " +
-                    "UNIQUE (showtime_id, seat_id))";
+                    "booking_date DATETIME, " +
+                    "total_price DECIMAL, " +
+                    "state TEXT)";                
+
+    /** SQL statement to create the 'tickets' table. */
+    public static final String TICKETS_TABLE = "CREATE TABLE IF NOT EXISTS tickets (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "user_id INTEGER NOT NULL REFERENCES users(id), " +
+                "booking_id INTEGER NOT NULL REFERENCES bookings(id), " +
+                "showtime_id INTEGER NOT NULL REFERENCES showtimes(id), " +
+                "seat_id INTEGER NOT NULL REFERENCES seats(id), " +
+                "price DECIMAL, " +
+                "ticket_class TEXT, " +
+                "purchase_date DATETIME, " +
+                "UNIQUE (showtime_id, seat_id))";
     
     /** SQL statement to create the 'ticket price' table. */
     public static final String PRICES_TABLE = "CREATE TABLE IF NOT EXISTS prices (" +
@@ -81,6 +90,23 @@ class Schema {
                     "standard_price INTEGER NOT NULL, " +
                     "child_price INTEGER NOT NULL, " +
                     "senior_price INTEGER NOT NULL)";
+
+    /** SQL statement to create the 'promotions' table. */
+    public static final String PROMOTIONS_TABLE = "CREATE TABLE IF NOT EXISTS promotions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "promo_code TEXT NOT NULL, " +
+                    "discount_percent DECIMAL, " +
+                    "expiration_date DATE)";
+
+    /** SQL statement to create the 'payments' table. */
+    public static final String PAYMENTS_TABLE = "CREATE TABLE IF NOT EXISTS payments (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL REFERENCES users(id), " +
+                    "amount DECIMAL, " +
+                    "card_last4 TEXT, " +
+                    "status TEXT, " +
+                    "transaction_id TEXT, " +
+                    "created_at DATETIME)";
 
     /** SQL statement to add a movie. */
     public static final String ADD_MOVIE = "INSERT INTO movies (" +
@@ -106,10 +132,28 @@ class Schema {
                     "movie_id, showroom_id, start_time, end_time) VALUES (?, ?, ?, ?)";
 
     /** SQL statement to add a ticket. */
+/** SQL statement to add a ticket. */
     public static final String ADD_TICKET = "INSERT INTO tickets (" +
-                    "user_id, showtime_id, seat_id, price, ticket_class, purchase_date) " +
+                    "user_id, booking_id, showtime_id, seat_id, price, ticket_class, purchase_date) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    /** SQL statement to add a row of ticket prices. */
+    public static final String ADD_PRICES = "INSERT INTO prices (" +
+                    "standard_price, child_price, senior_price) VALUES (?, ?, ?)";
+
+    /** SQL statement to add a promotion. */
+    public static final String ADD_PROMOTION = "INSERT INTO promotions (" +
+                    "promo_code, discount_percent, expiration_date) VALUES (?, ?, ?)";
+
+    /** SQL statement to add a payment. */
+    public static final String ADD_PAYMENT = "INSERT INTO payments (" +
+                    "user_id, amount, card_last4, status, transaction_id, created_at) " +
                     "VALUES (?, ?, ?, ?, ?, ?)";
-    
+
+    /** SQL statement to set a user's account state. */
+    public static final String SET_USER_STATE = "UPDATE users SET state = ? " +
+                    "WHERE email_address = ?";
+
     /** SQL statement to add a favorite movie. */
     public static final String ADD_FAVORITE_MOVIE = "INSERT INTO favorite_movies (" +
 		                "user_id, movie_id) VALUES (?, ?)";
@@ -153,7 +197,9 @@ class Schema {
     public static final String UPDATE_PASSWORD = "UPDATE users SET password_hash = ?, " +
                     "reset_code = NULL, reset_code_expires = NULL WHERE email_address = ?";
 
-    /** */
+   /** SQL statement to add a booking. */
+    public static final String ADD_BOOKING = "INSERT INTO bookings (" +
+                    "user_id, booking_date, total_price, state) VALUES (?, ?, ?, ?)";
 
 
     /** */

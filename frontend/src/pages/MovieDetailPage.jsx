@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchMovie } from '../api/movies.js'
+import { fetchShowtimesForMovie } from '../api/booking.js'
 import { statusLabel } from '../utils/statusLabel.js'
 import { embedUrl } from '../utils/youtube.js'
-import { getShowtimes } from '../utils/showtimes.js'
+import { formatShowtimeLabel } from '../utils/showtimes.js'
 import { useFavorites } from '../hooks/useFavorites.js'
 import FavoriteStar from '../components/FavoriteStar.jsx'
 import '../App.css'
@@ -11,6 +12,7 @@ import '../App.css'
 export default function MovieDetailPage() {
   const { id } = useParams()
   const [movie, setMovie] = useState(null)
+  const [showtimes, setShowtimes] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const { isFavorited, toggleFavorite, canFavorite } = useFavorites()
@@ -21,6 +23,13 @@ export default function MovieDetailPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!movie?.id) return
+    fetchShowtimesForMovie(movie.id)
+      .then(setShowtimes)
+      .catch(() => {})
+  }, [movie])
 
   if (loading) return <main className="detail"><p>Loading...</p></main>
   if (error) return <main className="detail"><p className="error">{error}</p></main>
@@ -33,7 +42,6 @@ export default function MovieDetailPage() {
     )
   }
 
-  const showtimes = getShowtimes(movie)
   const trailer = embedUrl(movie.trailer)
 
   return (
@@ -65,13 +73,13 @@ export default function MovieDetailPage() {
           <h2>Showtimes</h2>
           {showtimes.length > 0 ? (
             <ul className="showtimes">
-              {showtimes.map((time) => (
-                <li key={time}>
+              {showtimes.map((st) => (
+                <li key={st.id}>
                   <Link
-                    to={`/booking?movieId=${encodeURIComponent(movie.title)}&showtime=${encodeURIComponent(time)}`}
+                    to={`/booking?movieId=${movie.id}&showtimeId=${st.id}`}
                     className="showtime"
                   >
-                    {time}
+                    {formatShowtimeLabel(st)}
                   </Link>
                 </li>
               ))}

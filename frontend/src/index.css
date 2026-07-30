@@ -1,5 +1,6 @@
 :root {
   --bg: #0b1120;
+  --bg-gradient: linear-gradient(180deg, #0b1120 0%, #0b1120 75%, #8b008b 100%);
   --surface: #141d31;
   --surface-2: #1c2740;
   --border: #29354f;
@@ -40,7 +41,8 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   color: var(--text);
 }
 
