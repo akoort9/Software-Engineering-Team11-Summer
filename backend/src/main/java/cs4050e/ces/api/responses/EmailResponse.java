@@ -19,6 +19,9 @@ public class EmailResponse implements Response {
 	/** Access to the database. */
 	private static final DataHandler db = DataHandler.getInstance();
 
+	/** SMTP app password. */
+	private static final String password = "";
+
 	/**
 	 * Sends an email to a {@code User} with a given code.
 	 * @param template The email template to use.
@@ -152,7 +155,7 @@ public class EmailResponse implements Response {
 	private static Mailer buildMailer() {
 		return MailerBuilder
 			// i'll actually kill you if you try and use this to get into my account
-			.withSMTPServer("smtp.gmail.com", 587, "qwertyshepherd@gmail.com", "cqbw bpvx xtpk befo")
+			.withSMTPServer("smtp.gmail.com", 587, "qwertyshepherd@gmail.com", password)
 			.withTransportStrategy(TransportStrategy.SMTP_TLS)
 			.buildMailer();
 	} // buildMailer
