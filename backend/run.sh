@@ -2,4 +2,4 @@
 
 mvn -q clean
 mvn -q compile
-mvn exec:java -Dexec.mainClass=cs4050e.ces.App
+mvn exec:java -Dexec.mainClass=cs4050e.ces.App -Dexec.args="--fresh"
